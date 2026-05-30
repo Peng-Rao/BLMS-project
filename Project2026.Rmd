@@ -1,0 +1,757 @@
+---
+title: "Final Project 2026"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+## IMPORTANT: 
+read carefully the instruction for the final project in the pdf file 
+
+__Project2026_INFO.pdf__ 
+
+
+This Notebook contains only the description of the dataset and some preliminary data visualizations.
+
+
+## 1) Bike sharing Data.  
+
+
+__Source.__ https://www.kaggle.com/code/juniorbueno/rental-bikes/notebook
+
+__Data.__ 
+The data contains the number of casual/registered users in bike sharing systems and various additional covariates (related to the weather) as well information on days/month/year. 
+
+
+
+instant: record index
+
+dteday : date
+
+season : season (1:winter, 2:spring, 3:summer, 4:fall)
+
+yr : year (0: 2011, 1:2012)
+
+mnth : month ( 1 to 12)
+
+hr : hour (0 to 23)
+
+holiday : weather day is holiday or not
+
+weekday : day of the week
+
+workingday : if day is neither weekend nor holiday is 1, otherwise is 0.
+
+weathersit :
+
+1: Clear, Few clouds, Partly cloudy, Partly cloudy
+
+2: Mist + Cloudy, Mist + Broken clouds, Mist + Few clouds, Mist
+
+3: Light Snow, Light Rain + Thunderstorm + Scattered clouds, Light Rain + Scattered clouds
+
+4: Heavy Rain + Ice Pallets + Thunderstorm + Mist, Snow + Fog
+
+temp : Normalized temperature in Celsius. The values are derived via (t-tmin)/ (tmax-tmin), tmin=-8, t_max=+39 (only in hourly scale)
+
+atemp: Normalized feeling temperature in Celsius. The values are derived via (t-tmin)/(tmax-tmin), tmin=-16, t_max=+50 (only in hourly scale)
+
+hum: Normalized humidity. The values are divided to 100 (max)
+
+windspeed: Normalized wind speed. The values are divided to 67 (max)
+
+casual: count of casual users  
+
+registered: count of registered users
+
+cnt: count of total rental bikes including both casual and registered
+
+__Task.__
+Fit a regression model to predict the total number of rented bikes (or, alternatively, the number of casual or registered users). Since the counts are relatively large, you may consider using the logarithm of the counts together with a Gaussian model. Discuss the impact of the different variables, paying particular attention to the presence of several categorical covariates. Perform model selection and include a prediction exercise.
+
+
+
+```{r}
+rm(list=ls())
+#bike
+#https://www.kaggle.com/code/juniorbueno/rental-bikes/input?select=day.csv
+data = read.csv("data/bike.csv")
+hist(data$cnt,main="Bike sharing",xlab="bikes")
+data = data.frame(data[,3:16])
+dim(data)
+head(data)
+boxplot(data$cnt~data$holiday,xlab="holiday/not holiday",ylab="bikes",main="Bike sharing")
+boxplot(data$cnt~data$mnth,ylab="bikes",xlab="month",main="Bike sharing")
+
+data_s=data.frame(data[,8:12])
+data_s =data.frame(apply(data_s,2,as.numeric))
+data_s$casual=(data_s$casual-mean(data_s$casual))/sd(data_s$casual)
+head(data_s)
+model = lm(data_s$casual~.,data=data_s)
+
+summary(model)
+
+plot(data_s$casual,type="l",xlab="time",ylab="",main="Bike sharing")
+lines(model$fitted.values,lty=3,col="red")
+```
+
+
+## 2) Yacht hydrodynamic resistance
+
+
+__Source.__ UCI Machine Learning Repository,
+<https://archive.ics.uci.edu/dataset/243/yacht+hydrodynamics>.
+Original record: Gerritsma, Onnink and Versluis, *Geometry, resistance
+and stability of the Delft Systematic Yacht Hull Series*, 1981.
+
+__Data.__
+The dataset describes 22 different hull forms (sailing yacht), each
+tested at multiple Froude numbers in a towing tank, producing 308
+hull-form $\times$ Froude-number rows.
+
+Variables:
+
+`LCB` : longitudinal position of the center of buoyancy (% length).
+
+`prismatic` : prismatic coefficient (dimensionless).
+
+`L_disp` : length-displacement ratio.
+
+`beam_draught` : beam-draught ratio.
+
+`L_beam` : length-beam ratio.
+
+`Froude` : Froude number (dimensionless,
+$Fn = v/\sqrt{gL}$), in [0.125, 0.45]. The dominant predictor.
+
+`resistance` : residuary resistance per unit weight of displacement
+(target variable).
+
+__Task.__ The physics of the problem says that for sailing yachts the
+residuary resistance follows a power law of the Froude number with
+exponent close to 4 in the bulk regime. A good Bayesian project
+explores this:
+
+1. **Log-log regression.** Fit
+$$
+\log(\mathrm{resistance}) = \beta_0 + \beta_F\,\log(\mathrm{Froude}) + \sum_k \beta_k\,\mathrm{hull}_k + \varepsilon\,.
+$$
+Verify that $\hat\beta_F \approx 4$.
+
+2. **BAS / BMA.** Use `bas.lm` to enumerate the $2^5$ submodels over
+the five hull-geometry covariates and identify which of them (LCB,
+prismatic, L/disp, B/draught, L/beam) carry signal once `Froude` is
+in the model.
+
+3. **Correct for heteroscedasticity.** Train the nonlinear model
+$$
+\mathrm{resistance} = k\,\mathrm{Froude}^{\gamma_F}\,\exp\left\{\sum_k \beta_k\,\mathrm{hull}_k \right\} + \varepsilon
+$$
+where only the form factors that appear relevant in the model selection phase are kept for the nonlinear modelling. Compare the results with the log-log regression and discuss the impact of the heteroscedasticity correction on the inference on $\gamma_F$ and on the hull-geometry covariates.
+4. Plot the posterior predictive curves and compare the curves with or without the treatment of the heteroscedasticity and compare the curves with the data.
+
+```{r}
+rm(list=ls())
+# Yacht hydrodynamics — UCI #243
+yh = read.csv("data/yacht_hydro.csv")
+dim(yh)
+head(yh)
+summary(yh)
+
+# The power-law in Fn is best seen on log-log axes (drop F=0 rows if any)
+plot(log(yh$Froude), log(yh$resistance + 1e-3),
+     pch = 16, cex = 0.5,
+     xlab = "log(Froude)", ylab = "log(resistance)",
+     main = "Yacht hydrodynamic resistance — power-law scaling")
+abline(lm(log(resistance + 1e-3) ~ log(Froude), data = yh),
+       col = "red", lwd = 2)
+```
+
+## 3) Airline Customer satisfaction 
+
+
+__Source.__  https://www.kaggle.com/datasets/raminhuseyn/airline-customer-satisfaction
+
+__Data.__ 
+The dataset provides information on customer satisfaction levels for an undisclosed airline company. Although the name of the airline is not provided, the dataset contains a rich set of variables, with a total of 22 columns.
+
+For convenience, we extracted a subset containing 1000 customers from the original dataset.
+
+
+
+
+The dataset provides insights into customer satisfaction levels within an undisclosed airline company. While the specific airline name is withheld, the dataset is rich in information, containing 22 columns.
+
+Column name	Description: 
+
+Satisfaction.	Indicates the satisfaction level of the customer.
+
+Customer Type.	Type of customer: 'Loyal Customer' or 'Disloyal Customer’.
+
+Age:	Age of the customer.
+
+Type of Travel.	Purpose of the travel: 'Business travel' or 'Personal Travel’.
+
+Class:	Class of travel. 'Business', 'Eco', or 'Eco Plus’.
+
+Flight Distance.	The distance of the flight in kilometres
+
+Seat comfort.	Rating of seat comfort provided during the flight (1 to 5). 
+
+Departure/Arrival time convenient.	Rating of the convenience of departure/arrival time (1 to 5).
+
+Food and drink.	Rating of food and drink quality provided during the flight (1 to 5).
+
+Gate location.	Rating of gate location convenience (1 to 5).
+
+Inflight wifi service.	Rating of inflight wifi service satisfaction (1 to 5).
+
+Inflight entertainment.	Rating of inflight entertainment satisfaction (1 to 5).
+
+Online support. Rating of online customer support satisfaction (1 to 5).
+
+Ease of Online booking.	 Rating of ease of online booking satisfaction (1 to 5).
+
+On-board service.	Rating of on-board service satisfaction (1 to 5).
+
+Leg room service.	Rating of leg room service satisfaction (1 to 5).
+
+Baggage handling.	Rating of baggage handling satisfaction (1 to 5).
+
+Checkin service.	Rating of check-in service satisfaction (1 to 5).
+
+Cleanliness.	Rating of cleanliness satisfaction (1 to 5).
+Online boarding	Rating of online boarding satisfaction (1 to 5).
+
+Departure Delay in Minutes.	Total departure delay in minutes.
+
+Arrival Delay in Minutes.	Total arrival delay in minutes.
+
+
+
+We select from the original dataset 1000 customers. 
+
+__Task.__ Perform a suitable regression analysis for the categorical response variable \texttt{Satisfaction}. Identify the variables that are most strongly associated with customer satisfaction. A prediction exercise is required. Variable selection methods may also be discussed if desired.
+
+It is recommended to start using only a subset of the covariates, for example:
+\[
+\texttt{Age},\ \texttt{SeatComfort},\ \texttt{FlightDistance},\ \texttt{Class},\ \texttt{DepartureDelay},\ \texttt{ArrivalDelay}.
+\]
+
+More data and info are provided at https://www.kaggle.com/datasets/raminhuseyn/airline-customer-satisfaction
+
+
+
+```{r}
+rm(list=ls())
+# Airline Customer satisfaction
+# https://www.kaggle.com/datasets/raminhuseyn/airline-customer-satisfaction
+data = read.csv("data/Airline_customer_satisfaction.csv")
+#index = sample(1:nrow(data),1000,replace=F)
+#airline_sub = data[index,]
+#row.names(airline_sub) = 1:nrow(airline_sub)
+#write.csv(airline_sub,"data/airline_sub.csv")
+#head(airline_sub)
+
+airline_sub = read.csv("data/airline_sub.csv")
+
+boxplot(airline_sub$Arrival.Delay.in.Minutes~airline_sub$satisfaction,xlab="satisfaction",ylab="Arrival.Delay",main="Airline")
+```
+
+
+## 4)  Bank Marketing 
+
+__Source.__ https://archive.ics.uci.edu/dataset/222/bank+marketing
+
+__Data.__ The dataset is related to direct marketing campaigns conducted by a Portuguese banking institution. The marketing campaigns were based on phone calls. Often, more than one contact with the same client was required in order to determine whether the client would subscribe to a bank term deposit (yes) or not (no).
+
+__Task.__ 
+Perform a suitable regression analysis for the categorical response variable corresponding to the subscription of a bank term deposit. Identify the variables that are most strongly associated with the response. A prediction exercise is required. Variable selection methods may also be discussed if desired.
+
+Since the dataset contains many categorical covariates, you may choose to work only with a subset of them.
+
+
+
+```{r}
+rm(list=ls())
+data = data.frame(read.csv("data/bank.csv", header=FALSE, sep=";"))
+names=data[1,]
+data=data[-1,]
+colnames(data)<-names
+head(data)
+data$y <- ifelse(data$y == "yes", 1, 0)
+tab <- table(data$education, data$y)
+prop <- prop.table(tab, margin = 1)
+barplot(t(prop))
+boxplot(as.numeric(data$campaign)~data$y)
+```
+
+
+## 5)  Student performance Data.
+
+
+__Source.__ 
+https://archive.ics.uci.edu/dataset/320/student+performance
+
+__Data.__ 
+This dataset concerns student achievement in secondary education at two Portuguese schools. The data include student grades together with demographic, social, and school-related features. The dataset was collected using both school reports and questionnaires.
+
+__Task.__
+Fit a regression model to predict the final grade. Pay attention to the fact that the dataset contains many categorical variables. You may decide to exclude some covariates a priori in order to simplify the regression model.
+
+__Hint.__
+The final grade is not a categorical variable. Use a suitable discrete distribution with support on the range of the grades, and include the covariates in its parameters through appropriate link functions.
+
+
+```{r}
+rm(list=ls())
+#bike
+data = data.frame(read.csv("data/student-mat.csv", header=FALSE, sep=";"))
+names=data[1,]
+data=data[-1,]
+colnames(data)<-names
+head(data)
+hist(as.numeric(data$G3),main="Final grade")
+plot(as.numeric(data$Medu),as.numeric(data$G3),xlab="final grade")
+boxplot(as.numeric(data$G3)~data$Fjob,ylab="final grade",xlab="M. edu")
+boxplot(as.numeric(data$G3)~data$Mjob,ylab="final grade",xlab="M. job")
+
+```
+
+
+
+
+## 6) JFK Passengers 
+
+
+__Source.__
+<https://github.com/alan-turing-institute/TCPD/tree/master/datasets/jfk_passengers>
+
+__Data.__
+The Port Authority collects monthly data on domestic and international passengers, cargo, flights, and aircraft equipment types from each carrier operating at PANYNJ airports.
+
+
+__Task.__ This dataset can be analyzed using a change-point model with different means before and after the change point, possibly including a linear drift after the change point. A basic model is
+\[
+y_t = \mu_t + \epsilon_t,
+\]
+where
+\[
+\epsilon_t \sim {N}(0,\sigma_t^2),
+\]
+and
+\[
+\mu_t = \mu_1,\quad \sigma_t = \sigma_1 \qquad \text{if } t \leq \tau,
+\]
+while
+\[
+\mu_t = \mu_2,\quad \sigma_t = \sigma_2 \qquad \text{if } t > \tau.
+\]
+Here $\tau$ is an unknown change-point parameter.
+
+More complex change-point models may also be considered and discussed. Time series models are encouraged; for example, one may include different trends and different variances before and after the change point.
+
+
+
+
+
+```{r}
+JFK <- read.csv("data/JFK.csv")
+head(JFK)
+dim(JFK)
+
+JFK$time__raw=as.Date(paste(JFK$time__raw,"-01",sep=""))
+plot(JFK$time__raw,JFK$series__raw,xlab="time",ylab="pass",main="JFK")
+plot(JFK$time__raw[1:36],JFK$series__raw[1:36],xlab="time",ylab="pass",main="JFK")
+```
+
+
+## 7) GDP, INFLATION & UNEMPLOYMENT (US)
+
+
+__Source.__ https://fred.stlouisfed.org/series/A939RX0Q048SBEA#
+
+
+__Data.__ 
+The dataset consists of three time series:
+
+- Gross Domestic Product (GDP): real gross domestic product per capita (A939RX0Q048SBEA) [percent change from one year ago];
+
+- Consumer Price Index for All Urban Consumers: All Items in U.S. City Average (CPIAUCSL) [percent change from one year ago];
+
+- Unemployment Level (UNEMPLOY) [percent change from one year ago].
+
+More information is available on the website.
+
+__Task.__
+Fit suitable time series models for one or more of the series, analyzed separately. For example, you may consider AR, MA, ARMA, or GARCH models. If you use more than one model, compare the models using suitable information criteria, such as BIC, DIC, or WAIC.
+
+You may also consider multivariate time series models, such as a simple VAR(1) model. In this case, please ask the instructor for further information.
+
+The website also provides information on U.S. recession years. You may try to fit a switching model with two regimes: recession and non-recession.
+
+
+
+```{r}
+rm(list=ls())
+
+# New Family Houses Sold: United States
+# __Source.__ https://fred.stlouisfed.org/series/HSN1F
+
+data = read.csv("data/GDP-CPI-UNE.csv",header=T)
+data$DATE = as.Date(data$observation_date)
+sum(is.na(data$A939RX0Q048SBEA_PCH))
+plot(data$DATE,data$A939RX0Q048SBEA_PCH,type="l",xlab="",ylab="GDP",main="GDP+INFL+UNEMP",ylim=c(-20,20))
+lines(data$DATE,data$CPIAUCSL_PC1,type="l",col="red")
+lines(data$DATE,data$UNEMPLOY_PC1,type="l",col="green")
+```
+
+
+## 8)  ARPA: air quality. 
+
+Data __Source.__ ARPA Lombardia Open Data Portal https://www.dati.lombardia.it/stories/s/auv9-c2sj
+
+Air quality data collected at the Milano Pascal Città Studi monitoring station (station ID: 705):
+
+PM10= PM10 daily average, μg/m
+BioAz = NOx daily average), μg/m
+precipitazioni= recipitation (daily average), mm
+temprer= temperature (daily average), degrees Celsius
+vento= wind speed (daily average): m/s
+umidita= air humidity (daily average). 
+
+__Task.__
+Choose one of the following tasks.
+
+Task 1.  
+Perform a suitable regression analysis for either:
+
+-PM10 (integer-valued response), or
+
+-BioAz (continuous response),
+
+using the remaining variables as covariates.
+
+Note that the dataset also includes the day of the year (giorno), which may be useful for capturing seasonal effects.
+
+ Task 2.
+Consider a time series model for either PM10 or BioAz. You may:
+
+-use a simple model without exogenous covariates, or
+-include the other variables as exogenous covariates.
+
+
+Again, note that the dataset also includes the day of the year (giorno), which may help account for seasonality.
+
+
+
+```{r}
+rm(list=ls())
+#
+data = data.frame(read.csv("data/ARPA.csv", header=FALSE))
+names=data[1,]
+data=data[-1,]
+colnames(data)<-names
+head(data)
+data$Giorno<-as.Date(data$Giorno)
+data$BioAZ<-as.numeric(data$BioAZ)
+data$PM10<-as.numeric(data$PM10)
+data$precipitazioni<-as.numeric(data$precipitazioni)
+data$vento<-as.numeric(data$vento)
+data$temper<-as.numeric(data$temper)
+data$umidita<-as.numeric(data$umidita)
+
+plot(data$Giorno, data$PM10,
+     type = "l",
+     xlab = "Giorno",
+     ylab = "PM10")
+plot(data$Giorno, data$temper,
+     type = "l",
+     xlab = "Giorno",
+     ylab = "Temp & PM10")
+lines(data$Giorno, 0.5*data$PM10,col="red")
+```
+
+
+
+
+
+## 9) SPF 
+
+__Source.__ Federal Reserve. 
+
+__Data.__ 
+The Survey of Professional Forecasters (SPF) collects forecasts of macroeconomic variables. Both the U.S. SPF and the ECB-SPF ask forecasters to provide point forecasts and density forecasts. Density forecasts are reported in the form of histograms over a set of intervals specified in the survey instrument.
+
+ 
+"H"  horizon
+
+"period"  0 corresponds to 10 bin, 1 to  11 bin 
+
+"YEAR" year
+
+"QUARTER"  quarter  
+
+"ID"  forecaster id. 
+
+ "INDUSTRY" forecaster type
+
+ "bin1"      "bin2"      "bin3"      "bin4"     
+ "bin5"      "bin6"      "bin7"      "bin8"      "bin9"     
+"bin10"     "bin11"   probability given to the bin (to be ignored)   
+
+"nbin_tot" number of bins used 
+
+"openL"     "openR" 1 the forecaster gives positive probability to open (left/right) bin
+
+"n.b.mode"  position of the mode (wrt to bin number)
+
+"prob.mode"  probability assigned to the  modal bin 
+
+"mode"   value of the mode   (unform model fitting) 
+
+"mean"   value of the mean (unform model fitting)   
+
+"var"    value of the variance  (unform model fitting) 
+
+"median"  value of the median  (unform model fitting) 
+
+```{r}
+rm(list=ls())
+GDP=read.csv("data/SPF_GDP.csv")
+head(GDP)
+GDP_B=GDP[GDP$QUARTER==1,]
+Ydata=GDP_B[,c("mean","YEAR","ID")]  # select the variable of interest
+hist(Ydata$mean,main="mean",xlab="SPF-GDP: mean")
+```
+
+
+
+__Task.__
+Investigate whether individual uncertainty appears to be associated mainly with respondent-specific effects, while point forecasts (e.g., mean or median forecasts) are more strongly affected by time-period effects.
+
+In other words, the goal is to study whether there are substantial differences across forecasters in the confidence attached to their predictions, while each forecaster's confidence evolves only slowly over time.
+
+Consider only observations corresponding to a fixed forecast horizon (e.g., horizon 1, 2, etc.). If the variable of interest is denoted by $y_{f,t}$ (for example, the forecast mean or $y=\log(\sigma)$), start with the model
+\[
+y_{f,t} = \alpha_t + \beta_f + \epsilon_{f,t},
+\]
+where $\alpha_t$ represents the time effect and $\beta_f$ the forecaster effect.
+
+Compare variables related to point forecasts (e.g., mean or median forecasts) with variables related to uncertainty (e.g., variance or probability assigned to the modal interval).
+
+
+More advanced models may also be considered. For example:
+
+- models with time-varying error variances;
+
+- mixture models in which forecasters are grouped into latent blocks, and responses depend only on the block membership.
+
+Please ask the instructor for additional explanations if you are interested in this project.
+
+
+
+## 10) Single-cell growth measurements
+
+__Source.__ Kennard, A. S., Osella, M. C., Javer, A., Grilli, J., Nghe, P.,
+Tans, S., Cicuta, P., & Cosentino Lagomarsino, M. C. 2015. Individuality and universality in the growth-division laws of single E. coli cells.
+Physical Review E, 93, 012408 (ask the teacher for further details).
+
+__Data.__
+The dataset `cell_wide.csv` contains single-cell morphological measurements collected from time-lapse microscopy experiments on a bacterial cell strian (`P5ori`) grown under two different culture conditions: `Glc` (Glucose) and `RDM` (Rich Defined Media). Each row corresponds to one observation of one individual cell at a given frame of the experiment.
+
+Columns:
+
+First column is an index uniquely identifying the cell under consideration.
+
+`medium`: identifies the growth medium, either `Glc` or `RDM`.
+
+`t0`, `L0`: time and length at birth (first frame of the cell's life).
+
+`t1`, `L1`, ..., `t61`, `L61`: time and length at subsequent frames until the cell divides (last frame of the cell's life).`
+The final frame is not the same for all cells, hence the presence of trailing `NA` values.
+
+__Task.__ 
+For each cell, the length $L$ typically grows exponentially between two divisions, that is
+\[
+L(t)=L(t_0)e^{\beta (t-t_0)}
+\]
+where $L(t_0)$ is the length at birth time $t_0$ and $L(t)$ is the length at time $t$.
+Fit a model of the form
+\[
+\log\!\left(\frac{L_i(t)}{L_i(t_0)}\right)
+=
+\beta_i (t-t_0) + \epsilon_{i,t}
+\]
+with independent Gaussian errors $\epsilon_{i,t}$ and cell-specific coefficients
+$\beta_i$. Study the distribution of the growth rates `beta_i` across conditions.
+Use hierarchical modelling to share information across cells and obtain more precise estimates of the growth rates.
+Discuss whether the two media `GLC` and `RDM` lead to significantly different cell sizes and/or growth rates.
+
+```{r}
+rm(list=ls())
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+wide <- read.csv("data/cells_wide.csv", row.names = 1, check.names = FALSE,
+                 stringsAsFactors = FALSE)
+
+wide %>%
+  tibble::rownames_to_column("CID") %>%
+  pivot_longer(
+    cols = -c(CID, medium),
+    names_to = c(".value", "i"),
+    names_pattern = "([tL])(\\d+)"
+  ) %>%
+  rename(time = t, length = L) %>%
+  filter(!is.na(time), !is.na(length)) %>%
+  ggplot(aes(x = time, y = length, group = CID, colour = medium)) +
+  geom_line(alpha = 0.6) +
+  scale_y_log10() +
+  labs(title = "Sampled cells: length vs time",
+       x = "time (min)", y = "length (µm - log scale)") +
+  theme_minimal()
+```
+
+## 11) Hourly city load factor
+
+__Source__ Salam & El Hibaoui, *Power Consumption of Tetouan
+City*, UCI Machine Learning Repository,
+<https://archive.ics.uci.edu/dataset/849/power+consumption+of+tetouan+city>.
+The original release records the active power consumed by the three
+distribution zones of Tetouan (Morocco) during 2017, sampled every
+ten minutes by the SCADA system of the local utility.
+
+__Data.__ 
+Data file: `data/hourly_load_factor.csv` (2000 rows).
+The CSV we share is a derived, pre-cleaned version.
+For each (day, hour) of the year we have computed the hourly mean of
+the **city-wide** active power
+$\overline{P}(d, h) = \mathrm{Zone1}(d, h) + \mathrm{Zone2}(d, h)
++ \mathrm{Zone3}(d, h)$ from the original 10-min readings, and then
+the **hourly load factor**
+$$
+\mathrm{LF}(d, h) = \frac{\overline{P}(d, h)}{\max_{h'} \overline{P}(d, h')}\,,
+$$
+i.e. the ratio between the average load in hour $h$ and the highest
+hourly average of the same day. By construction $\mathrm{LF}(d, h)
+\in [0, 1]$: the day-peak hour gets exactly $1$ and the deepest
+off-peak hour gets the smallest value. From the full
+$365 \times 24 \approx 8700$ (day, hour) cells we have taken a
+uniform random subsample of 2000 rows and clamped the values to
+$(10^{-3},\, 1 - 10^{-3})$ so that the Beta log-density is finite at
+the boundary.
+
+Variables:
+
+`date` : calendar date (M/D/YYYY).
+
+`hour` : hour of the day, integer in $\{0, \dots, 23\}$.
+
+`load_factor` : hourly load factor as defined above, in
+$(10^{-3},\, 1 - 10^{-3})$.
+
+
+__Task.__
+
+1. Compare a single Beta vs Beta mixture model with $H = 1, 2, 3, 4, 5$, with model
+selection via WAIC.
+
+2. Overlay the posterior predictive density on the empirical
+histogram and verify that the modes are recovered.
+
+3. **Post-hoc exploration.** Assign each observation to its
+maximum-a-posteriori component, then plot the empirical fraction
+of observations in each component as a function of `hour`.
+
+4. **Advanced.** Fit a second model which does classification on `hour` using the
+component assignment as response variable, and plot the predicted
+probability of each component as a function of `hour`. Do the two
+plots match? Discuss the results. (Details for this step are presented in the additional details notebook)
+We will predict the component assignment using a multinomial logistic regression with the Fourier-transformed `hour` as covariate, i.e. with predictors $\sin(k 2\pi h / 24)$ and $\cos(k 2\pi h / 24)$ to capture the periodicity of the day.
+
+
+```{r}
+rm(list=ls())
+lf = read.csv("data/hourly_load_factor.csv")
+dim(lf); head(lf); summary(lf$load_factor)
+
+hist(lf$load_factor, breaks = 35, freq = FALSE,
+     col = "tomato", border = "white",
+     xlab = "Load factor (hourly / daily peak)",
+     main = "Hourly city load factor — empirical density (n = 2000)")
+lines(density(lf$load_factor, from = 0.01, to = 0.99),
+      col = "darkorange", lwd = 2)
+```
+
+## 12) Capacitor accelerated life tests (survival data)
+
+__Source.__ Dataset `capacitor` from the R package `survival`.
+
+__Data.__ The dataset contains the result of 64 accelerated life tests on capacitors. The experiment follows a 4 x 2 factorial design over two stress variables:
+
+`voltage`: the operating voltage during the test (4 levels);
+
+`temperature`: the operating temperature during the test in degrees Celsius (2 levels — must be converted to Kelvin for the physical model);
+
+`time`: observed time of failure (or censoring time), in hours;
+
+`status`: censoring indicator (1 = failure observed, 0 = right-censored).
+
+__Task.__ 
+A commonly used physical hazard model for capacitor failure is
+\[
+h(t \mid V, T) \;\propto\; V^{\gamma}\,\exp\!\left(-\beta / T\right),
+\]
+with $T$ measured in Kelvin. This corresponds to a regression on $\log(V)$ and $1/T$.
+
+
+
+1.   Fit a proportional hazards model with linear predictor involving $\log(V)$ and $1/T$, and estimate the hazard ratio associated with each variable.
+
+2.  Choose an appropriate parametric form for the baseline hazard, for example exponential, Weibull, or log-normal, and compare alternatives using information criteria such as DIC/WAIC, or posterior predictive checks.
+
+3. Extrapolate to typical \emph{operating} conditions, namely $50^\circ$C and $200$ V, which lie \emph{outside} the experimental design, and obtain a posterior cloud or credible band for the survival function
+\[
+S(t \mid V=200,\, T=323.15).
+\]
+
+4.  (More advanced.) Compute the posterior distribution of the \emph{B10 lifetime}, i.e.\ the time at which 10\% of the components have failed under operating conditions, namely $50^\circ$C and $200$ V:
+\[
+B_{10} \;=\; S^{-1}(0.9 \mid V=200,\; T=323.15).
+\]
+
+
+```{r}
+rm(list=ls())
+# install.packages("survival") #if needed
+library(survival)
+data(capacitor)
+head(capacitor)
+dim(capacitor)
+
+# Convert temperature to Kelvin for the physical model
+capacitor$tempK = capacitor$temperature + 273.15
+
+# Quick look at the design
+table(capacitor$voltage, capacitor$temperature)
+
+# Kaplan-Meier curves stratified by stress level
+fit_km = survfit(Surv(time, status) ~ voltage + temperature, data = capacitor)
+plot(fit_km, col = 1:8, xlab = "time (h)", ylab = "S(t)",
+     main = "KM survival curves by stress level")
+
+```
+
+
+
+
+
+
+
+
+
+
+

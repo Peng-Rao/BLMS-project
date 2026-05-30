@@ -1,0 +1,15 @@
+# R
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+
+# Knitr / RMarkdown cache
+*_cache/
+*_files/
+.knit.md
+.utf8.md
+
+# macOS
+.DS_Store
