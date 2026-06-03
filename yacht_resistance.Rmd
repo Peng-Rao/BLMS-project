@@ -85,3 +85,114 @@ plot(log(yh$Froude), log(yh$resistance + 1e-3),
 abline(lm(log(resistance + 1e-3) ~ log(Froude), data = yh),
        col = "red", lwd = 2)
 ```
+
+
+## 1. Log-log regression (Bayesian, reference prior)
+
+We fit the log-log model
+$$
+\log(\mathrm{resistance}) = \beta_0 + \beta_F\,\log(\mathrm{Froude})
+  + \sum_{k=1}^{5}\beta_k\,\mathrm{hull}_k + \varepsilon,
+  \qquad \varepsilon \sim \mathcal N(0,\sigma^2),
+$$
+with the non-informative reference (Jeffreys) prior
+$p(\beta,\sigma^2)\propto 1/\sigma^2$. The smallest resistance is
+$0.01>0$, so the logarithm is well defined and no offset is needed. Under
+this prior the posterior is Normal-Inverse-Gamma and we sample it by
+Monte Carlo. The goal is to verify the physical expectation
+$\beta_F\approx 4$.
+
+```{r loglog-setup}
+set.seed(2026)
+yh$log_res <- log(yh$resistance)   # no offset: min(resistance) = 0.01 > 0
+yh$log_Fr  <- log(yh$Froude)
+
+predictors <- c("log_Fr", "LCB", "prismatic", "L_disp", "beam_draught", "L_beam")
+form <- as.formula(paste("log_res ~", paste(predictors, collapse = " + ")))
+
+X <- model.matrix(form, data = yh); y <- yh$log_res
+n <- nrow(X); p <- ncol(X)
+
+XtX_inv  <- solve(crossprod(X))
+beta_hat <- as.vector(XtX_inv %*% crossprod(X, y))   # OLS = posterior mean
+names(beta_hat) <- colnames(X)
+resid <- y - X %*% beta_hat
+s2    <- as.numeric(crossprod(resid)) / (n - p)
+```
+
+```{r loglog-mc}
+## Monte Carlo draws from the Normal-Inverse-Gamma posterior:
+##   sigma^2 | y      ~ Inv-Gamma( (n-p)/2 , (n-p)s2/2 )
+##   beta | sigma^2,y ~ N( beta_hat , sigma^2 (X'X)^{-1} )
+M <- 20000
+sigma2_draws <- (n - p) * s2 / rchisq(M, df = n - p)
+L <- chol(XtX_inv)
+beta_draws <- matrix(0, M, p, dimnames = list(NULL, colnames(X)))
+for (m in seq_len(M)) {
+  beta_draws[m, ] <- beta_hat + sqrt(sigma2_draws[m]) * as.vector(crossprod(L, rnorm(p)))
+}
+
+post_ci <- t(apply(beta_draws, 2, quantile, probs = c(0.025, 0.975)))
+summ <- data.frame(
+  mean  = colMeans(beta_draws),
+  sd    = apply(beta_draws, 2, sd),
+  q2.5  = post_ci[, 1],
+  q97.5 = post_ci[, 2],
+  P_gt0 = colMeans(beta_draws > 0)
+)
+round(summ, 4)
+cat("R^2 =", round(1 - sum(resid^2)/sum((y - mean(y))^2), 4),
+    "  residual sd =", round(sqrt(s2), 4), "\n")
+```
+
+The posterior of the Froude exponent is sharply concentrated around 4.69,
+well above the textbook value of 4 -- the empirical power law is slightly
+steeper than $Fn^4$.
+
+```{r loglog-betaF}
+bF <- beta_draws[, "log_Fr"]
+cat(sprintf("beta_F: mean = %.3f, 95%% CI = [%.3f, %.3f], P(beta_F > 4) = %.3f\n",
+            mean(bF), quantile(bF, .025), quantile(bF, .975), mean(bF > 4)))
+```
+
+None of the five hull form factors is individually credible once `Froude`
+is in the model (every 95% interval contains zero); this redundancy is
+addressed by the BAS/BMA model selection in part 2.
+
+```{r loglog-plots, fig.width=10, fig.height=4}
+op <- par(mfrow = c(1, 2), mar = c(4.2, 4.2, 2, 1))
+
+## (a) log-log scatter with posterior-mean line and 95% credible band
+xg <- seq(min(yh$log_Fr), max(yh$log_Fr), length.out = 120)
+hull_means <- colMeans(yh[, c("LCB","prismatic","L_disp","beam_draught","L_beam")])
+Xg <- cbind(1, xg, matrix(rep(hull_means, each = length(xg)), nrow = length(xg)))
+band <- apply(Xg %*% t(beta_draws), 1, quantile, probs = c(0.025, 0.5, 0.975))
+plot(yh$log_Fr, yh$log_res, pch = 16, cex = 0.55, col = rgb(0,0,0,0.45),
+     xlab = "log(Froude)", ylab = "log(resistance)", main = "Power-law fit")
+polygon(c(xg, rev(xg)), c(band[1,], rev(band[3,])), col = rgb(.85,.1,.1,.18), border = NA)
+lines(xg, band[2,], col = "firebrick", lwd = 2.2)
+
+## (b) Monte Carlo posterior of beta_F
+plot(density(bF), col = "firebrick", lwd = 2, main = expression("Posterior of "*beta[F]),
+     xlab = expression(beta[F]))
+abline(v = quantile(bF, c(.025, .975)), col = "firebrick", lty = 2)
+abline(v = 4, col = "navy", lwd = 2)
+par(op)
+```
+
+```{r loglog-diagnostics, fig.width=10, fig.height=4}
+op <- par(mfrow = c(1, 2), mar = c(4.2, 4.2, 2, 1))
+fitted_vals <- as.vector(X %*% beta_hat)
+plot(fitted_vals, resid, pch = 16, cex = 0.5, col = rgb(0,0,0,0.45),
+     xlab = "fitted log(resistance)", ylab = "residual", main = "Residuals vs fitted")
+abline(h = 0, col = "firebrick"); lines(lowess(fitted_vals, resid), col = "navy", lwd = 2)
+qqnorm(resid, pch = 16, cex = 0.5, col = rgb(0,0,0,0.45), main = "Normal Q-Q")
+qqline(resid, col = "firebrick")
+par(op)
+```
+
+The residuals show a $\cup$-shaped curvature (the local Froude exponent
+grows with speed) and a variance that shrinks as the fitted value grows
+(heteroscedasticity). Both defects motivate the heteroscedasticity-corrected
+nonlinear model of parts 3-4. The publication-quality versions of these
+figures used in the report are produced by `R/loglog_analysis.R`.
