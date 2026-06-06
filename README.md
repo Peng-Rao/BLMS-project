@@ -51,7 +51,7 @@ regime. The project explores this with a Bayesian analysis:
 
 3. **Correct for heteroscedasticity.** Train the nonlinear model
 
-   $$\mathrm{resistance} = k\,\mathrm{Froude}^{\gamma_F}\,\exp\left\{\sum_k \beta_k\,\mathrm{hull}_k\right\} + \varepsilon$$
+   $$\mathrm{resistance} = k\,\mathrm{Froude}^{\gamma_F}\,\exp\left\lbrace\sum_k \beta_k\,\mathrm{hull}_k\right\rbrace + \varepsilon$$
 
    where only the form factors that appear relevant in the model-selection phase
    are kept. Compare the results with the log–log regression and discuss the
