@@ -35,15 +35,11 @@ Variables:
 
 **Task.** The physics of the problem says that for sailing yachts the residuary resistance follows a power law of the Froude number with exponent close to 4 in the bulk regime. A good Bayesian project explores this:
 
-1.  **Log-log regression.** Fit
-    $$\log(\mathrm{resistance}) = \beta_0 + \beta_F\,\log(\mathrm{Froude}) + \sum_k \beta_k\,\mathrm{hull}_k + \varepsilon\,.$$
-    Verify that $\hat\beta_F \approx 4$.
+1.  **Log-log regression.** Fit $$\log(\mathrm{resistance}) = \beta_0 + \beta_F\,\log(\mathrm{Froude}) + \sum_k \beta_k\,\mathrm{hull}_k + \varepsilon\,.$$ Verify that $\hat\beta_F \approx 4$.
 
 2.  **BAS / BMA.** Use `bas.lm` to enumerate the $2^5$ submodels over the five hull-geometry covariates and identify which of them (LCB, prismatic, L/disp, B/draught, L/beam) carry signal once `Froude` is in the model.
 
-3.  **Correct for heteroscedasticity.** Train the nonlinear model
-    $$\mathrm{resistance} = k\,\mathrm{Froude}^{\gamma_F}\,\exp\left\{\sum_k \beta_k\,\mathrm{hull}_k \right\} + \varepsilon$$
-    where only the form factors that appear relevant in the model selection phase are kept for the nonlinear modelling. Compare the results with the log-log regression and discuss the impact of the heteroscedasticity correction on the inference on $\gamma_F$ and on the hull-geometry covariates.
+3.  **Correct for heteroscedasticity.** Train the nonlinear model $$\mathrm{resistance} = k\,\mathrm{Froude}^{\gamma_F}\,\exp\left\{\sum_k \beta_k\,\mathrm{hull}_k \right\} + \varepsilon$$ where only the form factors that appear relevant in the model selection phase are kept for the nonlinear modelling. Compare the results with the log-log regression and discuss the impact of the heteroscedasticity correction on the inference on $\gamma_F$ and on the hull-geometry covariates.
 
 4.  Plot the posterior predictive curves and compare the curves with or without the treatment of the heteroscedasticity and compare the curves with the data.
 
@@ -67,11 +63,9 @@ abline(lm(log(resistance) ~ log(Froude), data = yh),
 
 ## 1. Log-log regression (Bayesian, reference prior)
 
-We fit the log-log model
-$$\log(\mathrm{resistance}) = \beta_0 + \beta_F\,\log(\mathrm{Froude})
+We fit the log-log model $$\log(\mathrm{resistance}) = \beta_0 + \beta_F\,\log(\mathrm{Froude})
   + \sum_{k=1}^{5}\beta_k\,\mathrm{hull}_k + \varepsilon,
-  \qquad \varepsilon \sim \mathcal N(0,\sigma^2),$$
-with the non-informative reference (Jeffreys) prior $p(\beta,\sigma^2)\propto 1/\sigma^2$. The smallest resistance is $0.01>0$, so the logarithm is well defined and no offset is needed. Under this prior the posterior is Normal-Inverse-Gamma and we sample it by Monte Carlo. The goal is to verify the physical expectation $\beta_F\approx 4$.
+  \qquad \varepsilon \sim \mathcal N(0,\sigma^2),$$ with the non-informative reference (Jeffreys) prior $p(\beta,\sigma^2)\propto 1/\sigma^2$. The smallest resistance is $0.01>0$, so the logarithm is well defined and no offset is needed. Under this prior the posterior is Normal-Inverse-Gamma and we sample it by Monte Carlo. The goal is to verify the physical expectation $\beta_F\approx 4$.
 
 ```{r loglog-setup}
 set.seed(2026)
@@ -159,3 +153,53 @@ par(op)
 ```
 
 The residuals show a $\cup$-shaped curvature (the local Froude exponent grows with speed) and a variance that shrinks as the fitted value grows (heteroscedasticity). Both defects motivate the heteroscedasticity-corrected nonlinear model of parts 3-4. All figures above are produced directly by the code chunks in this notebook.
+
+## 1.1 Robustness to an informative prior
+
+The reference prior above is deliberately *objective*: it lets the data alone estimate $\beta_F$, and we then **verify** the result against the physical value 4. A complementary, more subjective-Bayesian view is to **encode** the physics directly as an informative prior $\beta_F\sim\mathcal N(4,\tau^2)$ (vague on the remaining coefficients and on $\sigma^2$) and ask how strongly the prior would have to insist on 4 to override the data. The full conditionals are closed form, so a short Gibbs sampler suffices; we sweep the prior standard deviation $\tau$.
+
+```{r informative-prior}
+## beta | sigma^2, y  ~ N( V (S0^{-1} m0 + X'y/sigma^2), V ),  V = (S0^{-1} + X'X/sigma^2)^{-1}
+## sigma^2 | beta, y  ~ Inv-Gamma( a0 + n/2 , b0 + ||y - X beta||^2 / 2 )
+set.seed(2026)
+fr  <- which(colnames(X) == "log_Fr")
+XtX <- crossprod(X); Xty <- crossprod(X, y)
+
+gibbs_betaF <- function(tau, n_iter = 8000, burn = 2000) {
+  m0  <- rep(0, p); m0[fr] <- 4                  # prior mean: physics only on beta_F
+  psd <- rep(1000, p); psd[fr] <- tau            # prior sd: vague except beta_F
+  S0_inv <- diag(1 / psd^2); a0 <- 1e-3; b0 <- 1e-3
+  beta <- beta_hat; sig2 <- s2; keep <- numeric(n_iter - burn)
+  for (it in seq_len(n_iter)) {
+    V    <- solve(S0_inv + XtX / sig2)
+    mu   <- V %*% (S0_inv %*% m0 + Xty / sig2)
+    beta <- as.vector(mu + t(chol(V)) %*% rnorm(p))
+    sig2 <- 1 / rgamma(1, a0 + n / 2, b0 + sum((y - X %*% beta)^2) / 2)
+    if (it > burn) keep[it - burn] <- beta[fr]
+  }
+  keep
+}
+
+taus  <- c(0.05, 0.1, 0.2, 0.5)
+draws <- lapply(taus, gibbs_betaF)
+tab <- t(sapply(draws, function(d)
+  c(post_mean = mean(d), q2.5 = quantile(d, .025),
+    q97.5 = quantile(d, .975), P_gt4 = mean(d > 4))))
+rownames(tab) <- sprintf("tau = %.2f", taus)
+round(rbind(tab,
+            reference = c(mean(bF), quantile(bF, .025),
+                          quantile(bF, .975), mean(bF > 4))), 3)
+```
+
+```{r informative-prior-plot, fig.width=7, fig.height=4.2}
+cols <- c("#d7301f", "#fc8d59", "#f1a340", "#2b8cbe")
+plot(density(bF), lwd = 2.6, col = "grey30", xlim = c(3.9, 4.9),
+     main = expression("Posterior of "*beta[F]*" vs prior strength"),
+     xlab = expression(beta[F]))
+for (i in seq_along(taus)) lines(density(draws[[i]]), col = cols[i], lwd = 2)
+abline(v = 4, col = "navy", lty = 2, lwd = 2)
+legend("topright", bty = "n", lwd = 2, col = c("grey30", cols),
+       legend = c("reference  (1/sigma^2)", sprintf("N(4, %.2f^2)", taus)))
+```
+
+With a diffuse prior the analysis reproduces the reference result ($\beta_F\approx 4.69$). As the prior centered at 4 is tightened, the posterior mean is pulled toward 4 -- but only a near-dogmatic prior ($\tau=0.05$, a prior 95% interval of roughly $[3.9,4.1]$) drags it as far as $4.33$, and even then $P(\beta_F>4)=1$. For any moderately diffuse physical prior ($\tau\ge 0.1$) the likelihood dominates and the posterior stays in the range $4.56$--$4.69$. The conclusion that the empirical exponent is genuinely steeper than the textbook $Fn^4$ is therefore **robust to the prior**: it is a feature of the data ($n=308$), not an artifact of the non-informative choice. This is also a clean illustration of prior--data conflict -- the likelihood is informative enough to overwhelm all but an unreasonably confident prior.
