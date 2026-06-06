@@ -69,7 +69,7 @@ backend=biber]{biblatex}
 
 		\vspace{1cm}
 
-		\large{Authors: \\ \textbf{Peng Rao} (ID 270661)}
+		\large{Authors: \\ \textbf{Peng Rao}}
 	\end{center}
 
 \end{titlingpage}
@@ -80,39 +80,8 @@ backend=biber]{biblatex}
 
 \newpage
 
-\abstract{This report presents a comprehensive study on the hydrodynamic resistance of yachts using Bayesian Learning and Monte Carlo Simulation techniques. The primary goal is to model and predict the resistance forces acting on yacht hulls as they move through water. By applying Bayesian inference methods, we estimate the posterior distributions of resistance coefficients based on observed data and prior knowledge. Monte Carlo simulation is employed to propagate uncertainty through the model, allowing for robust predictions that account for variabilities in environmental conditions and material properties. The results provide insights into the efficiency of different hull designs and contribute to the optimization of yacht performance in marine engineering applications.}
-
-\clearpage
-
 \setcounter{page}{1}
 \pagenumbering{arabic}
-
-\section{Dataset Description}
-\label{sec:dataset}
-
-The data analysed in this report is the \emph{Yacht Hydrodynamics} dataset
-from the UCI Machine Learning Repository
-\autocite{ortigosa2007yacht}.
-
-The dataset comprises $22$ different hull geometries, each tested at a
-range of speeds (Froude numbers), for a total of $308$ observations
-(hull-form $\times$ Froude-number rows). Each observation is described by
-five hull-geometry parameters and the Froude number, together with the
-measured residuary resistance, which is the target variable. The variables
-are summarised in \cref{tab:variables} in the appendix.
-
-The first five covariates (\texttt{LCB}, \texttt{prismatic},
-\texttt{L\_disp}, \texttt{beam\_draught}, \texttt{L\_beam}) are geometric
-form factors that are constant within a given hull and characterise its
-shape. The Froude number is a dimensionless measure of speed and is the
-dominant predictor of resistance: for sailing yachts the residuary
-resistance is known to scale approximately as a power law of the Froude
-number, with an exponent close to $4$ in the bulk regime. This physical
-expectation motivates the log--log regression and nonlinear modelling
-adopted in the remainder of the report. The target \texttt{resistance}
-is strongly right-skewed, ranging over more than three orders of
-magnitude, which makes a logarithmic treatment and an explicit account of
-heteroscedasticity essential for sound Bayesian inference.
 
 \section{Log--log Regression}
 \label{sec:loglog}

@@ -1630,8 +1630,6 @@ Resistance</h1>
 <p>read carefully the instruction for the final project in the pdf
 file</p>
 <p><strong>Project2026_INFO.pdf</strong></p>
-<p>This Notebook contains only the description of the dataset and some
-preliminary data visualizations.</p>
 </div>
 <div id="yacht-hydrodynamic-resistance" class="section level2">
 <h2>Yacht hydrodynamic resistance</h2>
@@ -1658,25 +1656,23 @@ sailing yachts the residuary resistance follows a power law of the
 Froude number with exponent close to 4 in the bulk regime. A good
 Bayesian project explores this:</p>
 <ol style="list-style-type: decimal">
-<li><p><strong>Log-log regression.</strong> Fit <span class="math display">\[
-\log(\mathrm{resistance}) = \beta_0 + \beta_F\,\log(\mathrm{Froude}) +
-\sum_k \beta_k\,\mathrm{hull}_k + \varepsilon\,.
-\]</span> Verify that <span class="math inline">\(\hat\beta_F \approx
-4\)</span>.</p></li>
+<li><p><strong>Log-log regression.</strong> Fit <span class="math display">\[\log(\mathrm{resistance}) = \beta_0 +
+\beta_F\,\log(\mathrm{Froude}) + \sum_k \beta_k\,\mathrm{hull}_k +
+\varepsilon\,.\]</span> Verify that <span class="math inline">\(\hat\beta_F \approx 4\)</span>.</p></li>
 <li><p><strong>BAS / BMA.</strong> Use <code>bas.lm</code> to enumerate
 the <span class="math inline">\(2^5\)</span> submodels over the five
 hull-geometry covariates and identify which of them (LCB, prismatic,
 L/disp, B/draught, L/beam) carry signal once <code>Froude</code> is in
 the model.</p></li>
 <li><p><strong>Correct for heteroscedasticity.</strong> Train the
-nonlinear model <span class="math display">\[
-\mathrm{resistance} = k\,\mathrm{Froude}^{\gamma_F}\,\exp\left\{\sum_k
-\beta_k\,\mathrm{hull}_k \right\} + \varepsilon
-\]</span> where only the form factors that appear relevant in the model
-selection phase are kept for the nonlinear modelling. Compare the
-results with the log-log regression and discuss the impact of the
-heteroscedasticity correction on the inference on <span class="math inline">\(\gamma_F\)</span> and on the hull-geometry
-covariates.</p></li>
+nonlinear model <span class="math display">\[\mathrm{resistance} =
+k\,\mathrm{Froude}^{\gamma_F}\,\exp\left\{\sum_k
+\beta_k\,\mathrm{hull}_k \right\} + \varepsilon\]</span> where only the
+form factors that appear relevant in the model selection phase are kept
+for the nonlinear modelling. Compare the results with the log-log
+regression and discuss the impact of the heteroscedasticity correction
+on the inference on <span class="math inline">\(\gamma_F\)</span> and on
+the hull-geometry covariates.</p></li>
 <li><p>Plot the posterior predictive curves and compare the curves with
 or without the treatment of the heteroscedasticity and compare the
 curves with the data.</p></li>
@@ -1718,11 +1714,11 @@ abline(lm(log(resistance + 1e-3) ~ log(Froude), data = yh),
 </div>
 <div id="log-log-regression-bayesian-reference-prior" class="section level2">
 <h2>1. Log-log regression (Bayesian, reference prior)</h2>
-<p>We fit the log-log model <span class="math display">\[
-\log(\mathrm{resistance}) = \beta_0 + \beta_F\,\log(\mathrm{Froude})
+<p>We fit the log-log model <span class="math display">\[\log(\mathrm{resistance}) = \beta_0 +
+\beta_F\,\log(\mathrm{Froude})
   + \sum_{k=1}^{5}\beta_k\,\mathrm{hull}_k + \varepsilon,
-  \qquad \varepsilon \sim \mathcal N(0,\sigma^2),
-\]</span> with the non-informative reference (Jeffreys) prior <span class="math inline">\(p(\beta,\sigma^2)\propto 1/\sigma^2\)</span>. The
+  \qquad \varepsilon \sim \mathcal N(0,\sigma^2),\]</span> with the
+non-informative reference (Jeffreys) prior <span class="math inline">\(p(\beta,\sigma^2)\propto 1/\sigma^2\)</span>. The
 smallest resistance is <span class="math inline">\(0.01&gt;0\)</span>,
 so the logarithm is well defined and no offset is needed. Under this
 prior the posterior is Normal-Inverse-Gamma and we sample it by Monte

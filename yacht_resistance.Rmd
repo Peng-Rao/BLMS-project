@@ -5,28 +5,17 @@ output:
     df_print: paged
 ---
 
-
 ## IMPORTANT:
+
 read carefully the instruction for the final project in the pdf file
 
-__Project2026_INFO.pdf__
-
-
-This Notebook contains only the description of the dataset and some preliminary data visualizations.
-
+**Project2026_INFO.pdf**
 
 ## Yacht hydrodynamic resistance
 
+**Source.** UCI Machine Learning Repository, <https://archive.ics.uci.edu/dataset/243/yacht+hydrodynamics>. Original record: Gerritsma, Onnink and Versluis, *Geometry, resistance and stability of the Delft Systematic Yacht Hull Series*, 1981.
 
-__Source.__ UCI Machine Learning Repository,
-<https://archive.ics.uci.edu/dataset/243/yacht+hydrodynamics>.
-Original record: Gerritsma, Onnink and Versluis, *Geometry, resistance
-and stability of the Delft Systematic Yacht Hull Series*, 1981.
-
-__Data.__
-The dataset describes 22 different hull forms (sailing yacht), each
-tested at multiple Froude numbers in a towing tank, producing 308
-hull-form $\times$ Froude-number rows.
+**Data.** The dataset describes 22 different hull forms (sailing yacht), each tested at multiple Froude numbers in a towing tank, producing 308 hull-form $\times$ Froude-number rows.
 
 Variables:
 
@@ -40,34 +29,23 @@ Variables:
 
 `L_beam` : length-beam ratio.
 
-`Froude` : Froude number (dimensionless,
-$Fn = v/\sqrt{gL}$), in [0.125, 0.45]. The dominant predictor.
+`Froude` : Froude number (dimensionless, $Fn = v/\sqrt{gL}$), in [0.125, 0.45]. The dominant predictor.
 
-`resistance` : residuary resistance per unit weight of displacement
-(target variable).
+`resistance` : residuary resistance per unit weight of displacement (target variable).
 
-__Task.__ The physics of the problem says that for sailing yachts the
-residuary resistance follows a power law of the Froude number with
-exponent close to 4 in the bulk regime. A good Bayesian project
-explores this:
+**Task.** The physics of the problem says that for sailing yachts the residuary resistance follows a power law of the Froude number with exponent close to 4 in the bulk regime. A good Bayesian project explores this:
 
-1. **Log-log regression.** Fit
-$$
-\log(\mathrm{resistance}) = \beta_0 + \beta_F\,\log(\mathrm{Froude}) + \sum_k \beta_k\,\mathrm{hull}_k + \varepsilon\,.
-$$
-Verify that $\hat\beta_F \approx 4$.
+1.  **Log-log regression.** Fit
+    $$\log(\mathrm{resistance}) = \beta_0 + \beta_F\,\log(\mathrm{Froude}) + \sum_k \beta_k\,\mathrm{hull}_k + \varepsilon\,.$$
+    Verify that $\hat\beta_F \approx 4$.
 
-2. **BAS / BMA.** Use `bas.lm` to enumerate the $2^5$ submodels over
-the five hull-geometry covariates and identify which of them (LCB,
-prismatic, L/disp, B/draught, L/beam) carry signal once `Froude` is
-in the model.
+2.  **BAS / BMA.** Use `bas.lm` to enumerate the $2^5$ submodels over the five hull-geometry covariates and identify which of them (LCB, prismatic, L/disp, B/draught, L/beam) carry signal once `Froude` is in the model.
 
-3. **Correct for heteroscedasticity.** Train the nonlinear model
-$$
-\mathrm{resistance} = k\,\mathrm{Froude}^{\gamma_F}\,\exp\left\{\sum_k \beta_k\,\mathrm{hull}_k \right\} + \varepsilon
-$$
-where only the form factors that appear relevant in the model selection phase are kept for the nonlinear modelling. Compare the results with the log-log regression and discuss the impact of the heteroscedasticity correction on the inference on $\gamma_F$ and on the hull-geometry covariates.
-4. Plot the posterior predictive curves and compare the curves with or without the treatment of the heteroscedasticity and compare the curves with the data.
+3.  **Correct for heteroscedasticity.** Train the nonlinear model
+    $$\mathrm{resistance} = k\,\mathrm{Froude}^{\gamma_F}\,\exp\left\{\sum_k \beta_k\,\mathrm{hull}_k \right\} + \varepsilon$$
+    where only the form factors that appear relevant in the model selection phase are kept for the nonlinear modelling. Compare the results with the log-log regression and discuss the impact of the heteroscedasticity correction on the inference on $\gamma_F$ and on the hull-geometry covariates.
+
+4.  Plot the posterior predictive curves and compare the curves with or without the treatment of the heteroscedasticity and compare the curves with the data.
 
 ```{r}
 rm(list=ls())
@@ -77,30 +55,23 @@ dim(yh)
 head(yh)
 summary(yh)
 
-# The power-law in Fn is best seen on log-log axes (drop F=0 rows if any)
-plot(log(yh$Froude), log(yh$resistance + 1e-3),
+# The power-law in Fn is best seen on log-log axes;
+# resistance > 0 everywhere (min = 0.01), so plain log() needs no offset
+plot(log(yh$Froude), log(yh$resistance),
      pch = 16, cex = 0.5,
      xlab = "log(Froude)", ylab = "log(resistance)",
      main = "Yacht hydrodynamic resistance — power-law scaling")
-abline(lm(log(resistance + 1e-3) ~ log(Froude), data = yh),
+abline(lm(log(resistance) ~ log(Froude), data = yh),
        col = "red", lwd = 2)
 ```
-
 
 ## 1. Log-log regression (Bayesian, reference prior)
 
 We fit the log-log model
-$$
-\log(\mathrm{resistance}) = \beta_0 + \beta_F\,\log(\mathrm{Froude})
+$$\log(\mathrm{resistance}) = \beta_0 + \beta_F\,\log(\mathrm{Froude})
   + \sum_{k=1}^{5}\beta_k\,\mathrm{hull}_k + \varepsilon,
-  \qquad \varepsilon \sim \mathcal N(0,\sigma^2),
-$$
-with the non-informative reference (Jeffreys) prior
-$p(\beta,\sigma^2)\propto 1/\sigma^2$. The smallest resistance is
-$0.01>0$, so the logarithm is well defined and no offset is needed. Under
-this prior the posterior is Normal-Inverse-Gamma and we sample it by
-Monte Carlo. The goal is to verify the physical expectation
-$\beta_F\approx 4$.
+  \qquad \varepsilon \sim \mathcal N(0,\sigma^2),$$
+with the non-informative reference (Jeffreys) prior $p(\beta,\sigma^2)\propto 1/\sigma^2$. The smallest resistance is $0.01>0$, so the logarithm is well defined and no offset is needed. Under this prior the posterior is Normal-Inverse-Gamma and we sample it by Monte Carlo. The goal is to verify the physical expectation $\beta_F\approx 4$.
 
 ```{r loglog-setup}
 set.seed(2026)
@@ -145,9 +116,7 @@ cat("R^2 =", round(1 - sum(resid^2)/sum((y - mean(y))^2), 4),
     "  residual sd =", round(sqrt(s2), 4), "\n")
 ```
 
-The posterior of the Froude exponent is sharply concentrated around 4.69,
-well above the textbook value of 4 -- the empirical power law is slightly
-steeper than $Fn^4$.
+The posterior of the Froude exponent is sharply concentrated around 4.69, well above the textbook value of 4 -- the empirical power law is slightly steeper than $Fn^4$.
 
 ```{r loglog-betaF}
 bF <- beta_draws[, "log_Fr"]
@@ -155,9 +124,7 @@ cat(sprintf("beta_F: mean = %.3f, 95%% CI = [%.3f, %.3f], P(beta_F > 4) = %.3f\n
             mean(bF), quantile(bF, .025), quantile(bF, .975), mean(bF > 4)))
 ```
 
-None of the five hull form factors is individually credible once `Froude`
-is in the model (every 95% interval contains zero); this redundancy is
-addressed by the BAS/BMA model selection in part 2.
+None of the five hull form factors is individually credible once `Froude` is in the model (every 95% interval contains zero); this redundancy is addressed by the BAS/BMA model selection in part 2.
 
 ```{r loglog-plots, fig.width=10, fig.height=4}
 op <- par(mfrow = c(1, 2), mar = c(4.2, 4.2, 2, 1))
@@ -191,8 +158,4 @@ qqline(resid, col = "firebrick")
 par(op)
 ```
 
-The residuals show a $\cup$-shaped curvature (the local Froude exponent
-grows with speed) and a variance that shrinks as the fitted value grows
-(heteroscedasticity). Both defects motivate the heteroscedasticity-corrected
-nonlinear model of parts 3-4. The publication-quality versions of these
-figures used in the report are produced by `R/loglog_analysis.R`.
+The residuals show a $\cup$-shaped curvature (the local Froude exponent grows with speed) and a variance that shrinks as the fitted value grows (heteroscedasticity). Both defects motivate the heteroscedasticity-corrected nonlinear model of parts 3-4. All figures above are produced directly by the code chunks in this notebook.
