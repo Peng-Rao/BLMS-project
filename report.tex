@@ -88,12 +88,7 @@ backend=biber]{biblatex}
 
 \subsection{Model and prior}
 
-The physics of slender sailing hulls suggests that, in the bulk regime,
-the residuary resistance grows as a power of the Froude number,
-$\mathrm{resistance}\propto Fn^{\,\gamma_F}$ with $\gamma_F$ close to $4$.
-Taking logarithms turns this multiplicative law into a linear model, in
-which the exponent appears directly as a regression slope. We therefore
-fit
+The physics of slender sailing hulls suggests that, in the bulk regime, the residuary resistance grows as a power of the \textbf{Froude number}, $\mathrm{resistance}\propto Fn^{\,\gamma_F}$ with $\gamma_F$ close to $4$. Taking logarithms turns this multiplicative law into a linear model, in which the exponent appears directly as a regression slope. We therefore fit
 \begin{equation}
 	\log(\mathrm{resistance})
 	= \beta_0 + \beta_F\,\log(\mathrm{Froude})
@@ -101,15 +96,9 @@ fit
 	\qquad \varepsilon \sim \mathcal{N}(0,\sigma^2),
 	\label{eq:loglog}
 \end{equation}
-where $\mathrm{hull}_k$ denotes the five geometric form factors
-(\texttt{LCB}, \texttt{prismatic}, \texttt{L\_disp},
-\texttt{beam\_draught}, \texttt{L\_beam}). Since the smallest observed
-resistance is $0.01>0$, the logarithm is well defined for every record
-and no offset is required. Writing the $n=308$ observations in matrix form
-as $\bm{y}=\bm{X}\bm{\beta}+\bm{\varepsilon}$ with $\bm{\beta}\in\mathbb{R}^{p}$,
-$p=7$, we adopt the non-informative reference (Jeffreys) prior
+where $\mathrm{hull}_k$ denotes the five geometric form factors. Since the smallest observed resistance is $0.01>0$, the logarithm is well defined for every record and no offset is required. Writing the $n=308$ observations in matrix form as $\bm{y}=\bm{X}\bm{\beta}+\bm{\varepsilon}$ with $\bm{\beta}\in\mathbb{R}^{p}$, $p=7$, we adopt the non-informative \textbf{Jeffreys reference prior}
 \begin{equation}
-	p(\bm{\beta},\sigma^2)\;\propto\;\sigma^{-2},
+	\pi(\bm{\beta},\sigma^2)\;\propto\;\sigma^{-2},
 	\label{eq:prior}
 \end{equation}
 which lets the data dominate the inference and provides a transparent
@@ -225,6 +214,72 @@ subsequent section.
 		straddles zero (dashed line), indicating that no single form factor is
 		resolved once the Froude number is accounted for.}
 	\label{fig:forest}
+\end{figure}
+
+\subsection{Robustness to an informative prior}
+\label{sec:informative}
+
+The reference prior \eqref{eq:prior} is deliberately objective: it lets the
+data alone estimate the Froude exponent, which we then \emph{verify} against
+the physical value $4$. A complementary, fully Bayesian alternative is to
+\emph{encode} the physics directly through an informative prior on the
+exponent,
+\begin{equation}
+	\beta_F \sim \mathcal{N}(4,\tau^2),
+	\label{eq:inf_prior}
+\end{equation}
+while keeping the remaining coefficients and $\sigma^2$ vague. The prior
+standard deviation $\tau$ controls how strongly the prior insists on the
+textbook value. Because the resulting full conditionals remain in closed
+form --- $\bm{\beta}\mid\sigma^2,\bm{y}$ Gaussian and
+$\sigma^2\mid\bm{\beta},\bm{y}$ Inverse-Gamma --- the posterior is obtained
+with a short Gibbs sampler, and we sweep $\tau\in\{0.05,0.1,0.2,0.5\}$.
+
+\Cref{tab:informative} and \cref{fig:informative} summarise the effect. With
+a diffuse prior the analysis reproduces the reference result
+($\beta_F\approx4.69$). As the prior is tightened around $4$ the posterior
+mean is pulled downwards, but the data resist: only a near-dogmatic prior
+($\tau=0.05$, a prior $95\%$ interval of roughly $[3.9,4.1]$) drags the
+posterior mean as far as $4.33$, and even then
+$\Pr(\beta_F>4\mid\bm{y})=1$. For any moderately diffuse physical prior
+($\tau\ge0.1$) the likelihood dominates and the posterior stays in the range
+$4.56$--$4.69$. The conclusion that the empirical exponent is genuinely
+steeper than $Fn^{\,4}$ is therefore \textbf{robust to the prior}: it is a
+feature of the $n=308$ observations rather than an artefact of the
+non-informative choice. Equivalently, this is a transparent instance of
+prior--data conflict, in which a sufficiently informative likelihood
+overwhelms all but an unreasonably confident prior.
+
+\begin{table}[H]
+	\centering
+	\caption{Posterior of the Froude exponent $\beta_F$ under an informative
+		prior $\mathcal{N}(4,\tau^2)$ of increasing strength, obtained by Gibbs
+		sampling, compared with the reference-prior result.}
+	\label{tab:informative}
+	\begin{tabular}{l r r r r}
+		\toprule
+		\textbf{Prior on $\beta_F$} & \textbf{Mean} & \textbf{2.5\%} & \textbf{97.5\%} & $\Pr(\beta_F>4)$ \\
+		\midrule
+		$\mathcal{N}(4,0.05^2)$     & $4.33$        & $4.26$         & $4.41$          & $1.00$           \\
+		$\mathcal{N}(4,0.10^2)$     & $4.56$        & $4.47$         & $4.64$          & $1.00$           \\
+		$\mathcal{N}(4,0.20^2)$     & $4.65$        & $4.56$         & $4.74$          & $1.00$           \\
+		$\mathcal{N}(4,0.50^2)$     & $4.68$        & $4.59$         & $4.78$          & $1.00$           \\
+		\midrule
+		reference $\;\sigma^{-2}$   & $4.69$        & $4.60$         & $4.78$          & $1.00$           \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.72\textwidth]{figures/posterior_betaF_prior.pdf}
+	\caption{Posterior density of the Froude exponent $\beta_F$ under
+		informative priors $\mathcal{N}(4,\tau^2)$ of increasing strength
+		(coloured) and under the reference prior (grey). The dashed blue line
+		marks the physical value $\beta_F=4$. Tightening the prior toward $4$
+		shifts the posterior only modestly; the data keep it well above $4$
+		unless the prior is unreasonably confident.}
+	\label{fig:informative}
 \end{figure}
 
 \newpage
