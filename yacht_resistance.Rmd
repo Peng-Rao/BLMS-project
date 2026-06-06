@@ -65,141 +65,72 @@ abline(lm(log(resistance) ~ log(Froude), data = yh),
 
 We fit the log-log model $$\log(\mathrm{resistance}) = \beta_0 + \beta_F\,\log(\mathrm{Froude})
   + \sum_{k=1}^{5}\beta_k\,\mathrm{hull}_k + \varepsilon,
-  \qquad \varepsilon \sim \mathcal N(0,\sigma^2),$$ with the non-informative reference (Jeffreys) prior $p(\beta,\sigma^2)\propto 1/\sigma^2$. The smallest resistance is $0.01>0$, so the logarithm is well defined and no offset is needed. Under this prior the posterior is Normal-Inverse-Gamma and we sample it by Monte Carlo. The goal is to verify the physical expectation $\beta_F\approx 4$.
+  \qquad \varepsilon \sim \mathcal N(0,\sigma^2),$$ with the non-informative reference (Jeffreys) prior $\pi(\beta\mid\sigma^2)\propto 1$, $\pi(\sigma^2)\propto 1/\sigma^2$. The smallest resistance is $0.01>0$, so the logarithm is well defined and no offset is needed. Under this prior the marginal posterior of each coefficient is a Student-$t$ centred at the OLS estimate $\hat\beta$, and the **posterior credible intervals are numerically identical to the OLS confidence intervals**. We can therefore read the full Bayesian inference straight off `lm()`: point estimates from `coef()`, 95% credible intervals from `confint()`, and any posterior probability (such as $P(\beta_F>4)$) from the Student-$t$. The goal is to verify the physical expectation $\beta_F\approx 4$.
 
-```{r loglog-setup}
+```{r loglog-fit}
 set.seed(2026)
 yh$log_res <- log(yh$resistance)   # no offset: min(resistance) = 0.01 > 0
 yh$log_Fr  <- log(yh$Froude)
 
-predictors <- c("log_Fr", "LCB", "prismatic", "L_disp", "beam_draught", "L_beam")
-form <- as.formula(paste("log_res ~", paste(predictors, collapse = " + ")))
+fit <- lm(log_res ~ log_Fr + LCB + prismatic + L_disp + beam_draught + L_beam, data = yh)
 
-X <- model.matrix(form, data = yh); y <- yh$log_res
-n <- nrow(X); p <- ncol(X)
-
-XtX_inv  <- solve(crossprod(X))
-beta_hat <- as.vector(XtX_inv %*% crossprod(X, y))   # OLS = posterior mean
-names(beta_hat) <- colnames(X)
-resid <- y - X %*% beta_hat
-s2    <- as.numeric(crossprod(resid)) / (n - p)
-```
-
-```{r loglog-mc}
-## Monte Carlo draws from the Normal-Inverse-Gamma posterior:
-##   sigma^2 | y      ~ Inv-Gamma( (n-p)/2 , (n-p)s2/2 )
-##   beta | sigma^2,y ~ N( beta_hat , sigma^2 (X'X)^{-1} )
-M <- 20000
-sigma2_draws <- (n - p) * s2 / rchisq(M, df = n - p)
-L <- chol(XtX_inv)
-beta_draws <- matrix(0, M, p, dimnames = list(NULL, colnames(X)))
-for (m in seq_len(M)) {
-  beta_draws[m, ] <- beta_hat + sqrt(sigma2_draws[m]) * as.vector(crossprod(L, rnorm(p)))
-}
-
-post_ci <- t(apply(beta_draws, 2, quantile, probs = c(0.025, 0.975)))
-summ <- data.frame(
-  mean  = colMeans(beta_draws),
-  sd    = apply(beta_draws, 2, sd),
-  q2.5  = post_ci[, 1],
-  q97.5 = post_ci[, 2],
-  P_gt0 = colMeans(beta_draws > 0)
-)
-round(summ, 4)
-cat("R^2 =", round(1 - sum(resid^2)/sum((y - mean(y))^2), 4),
-    "  residual sd =", round(sqrt(s2), 4), "\n")
+## reference prior => credible intervals = OLS confidence intervals
+round(cbind(estimate = coef(fit), confint(fit)), 4)
+cat("R^2 =", round(summary(fit)$r.squared, 4),
+    "  residual sd =", round(summary(fit)$sigma, 4), "\n")
 ```
 
 The posterior of the Froude exponent is sharply concentrated around 4.69, well above the textbook value of 4 -- the empirical power law is slightly steeper than $Fn^4$.
 
 ```{r loglog-betaF}
-bF <- beta_draws[, "log_Fr"]
+cf <- summary(fit)$coefficients
+bF <- cf["log_Fr", "Estimate"]; se <- cf["log_Fr", "Std. Error"]; df <- fit$df.residual
+ci <- confint(fit)["log_Fr", ]
+## beta_F | y ~ t_df centred at bF with scale se  =>  P(beta_F > 4)
 cat(sprintf("beta_F: mean = %.3f, 95%% CI = [%.3f, %.3f], P(beta_F > 4) = %.3f\n",
-            mean(bF), quantile(bF, .025), quantile(bF, .975), mean(bF > 4)))
+            bF, ci[1], ci[2], pt((bF - 4) / se, df = df)))
 ```
 
 None of the five hull form factors is individually credible once `Froude` is in the model (every 95% interval contains zero); this redundancy is addressed by the BAS/BMA model selection in part 2.
 
-```{r loglog-plots, fig.width=10, fig.height=4}
-op <- par(mfrow = c(1, 2), mar = c(4.2, 4.2, 2, 1))
-
-## (a) log-log scatter with posterior-mean line and 95% credible band
-xg <- seq(min(yh$log_Fr), max(yh$log_Fr), length.out = 120)
+```{r loglog-fit-plot, fig.width=7, fig.height=4.6}
+## log-log scatter with posterior-mean line and 95% credible band
+##   (= OLS confidence band under the reference prior)
 hull_means <- colMeans(yh[, c("LCB","prismatic","L_disp","beam_draught","L_beam")])
-Xg <- cbind(1, xg, matrix(rep(hull_means, each = length(xg)), nrow = length(xg)))
-band <- apply(Xg %*% t(beta_draws), 1, quantile, probs = c(0.025, 0.5, 0.975))
-plot(yh$log_Fr, yh$log_res, pch = 16, cex = 0.55, col = rgb(0,0,0,0.45),
+xg   <- seq(min(yh$log_Fr), max(yh$log_Fr), length.out = 120)
+band <- predict(fit, data.frame(log_Fr = xg, as.list(hull_means)), interval = "confidence")
+band_col <- rgb(.85, .1, .1, .30)
+plot(yh$log_Fr, yh$log_res, pch = 16, cex = 0.6, col = rgb(0,0,0,0.45),
      xlab = "log(Froude)", ylab = "log(resistance)", main = "Power-law fit")
-polygon(c(xg, rev(xg)), c(band[1,], rev(band[3,])), col = rgb(.85,.1,.1,.18), border = NA)
-lines(xg, band[2,], col = "firebrick", lwd = 2.2)
+polygon(c(xg, rev(xg)), c(band[, "lwr"], rev(band[, "upr"])), col = band_col, border = NA)
+lines(xg, band[, "fit"], col = "firebrick", lwd = 2.4)
+legend("topleft", bty = "n",
+       legend = c("data", "posterior mean fit", "95% credible band"),
+       pch = c(16, NA, 15), lty = c(NA, 1, NA), lwd = c(NA, 2.4, NA),
+       pt.cex = c(1, NA, 1.8), col = c(rgb(0,0,0,0.45), "firebrick", band_col))
+```
 
-## (b) Monte Carlo posterior of beta_F
-plot(density(bF), col = "firebrick", lwd = 2, main = expression("Posterior of "*beta[F]),
-     xlab = expression(beta[F]))
-abline(v = quantile(bF, c(.025, .975)), col = "firebrick", lty = 2)
+```{r loglog-betaF-plot, fig.width=7, fig.height=4.6}
+## posterior of beta_F: Student-t centred at the OLS estimate
+xb <- seq(bF - 4 * se, bF + 4 * se, length.out = 200)
+plot(xb, dt((xb - bF) / se, df) / se, type = "l", col = "firebrick", lwd = 2.4,
+     main = expression("Posterior of "*beta[F]),
+     xlab = expression(beta[F]), ylab = "posterior density")
+abline(v = ci, col = "firebrick", lty = 2)
 abline(v = 4, col = "navy", lwd = 2)
-par(op)
+legend("topright", bty = "n", lwd = c(2.4, 1, 2), lty = c(1, 2, 1),
+       col = c("firebrick", "firebrick", "navy"),
+       legend = c("posterior", "95% CI", expression(beta[F] == 4)))
 ```
 
 ```{r loglog-diagnostics, fig.width=10, fig.height=4}
 op <- par(mfrow = c(1, 2), mar = c(4.2, 4.2, 2, 1))
-fitted_vals <- as.vector(X %*% beta_hat)
-plot(fitted_vals, resid, pch = 16, cex = 0.5, col = rgb(0,0,0,0.45),
+plot(fitted(fit), resid(fit), pch = 16, cex = 0.5, col = rgb(0,0,0,0.45),
      xlab = "fitted log(resistance)", ylab = "residual", main = "Residuals vs fitted")
-abline(h = 0, col = "firebrick"); lines(lowess(fitted_vals, resid), col = "navy", lwd = 2)
-qqnorm(resid, pch = 16, cex = 0.5, col = rgb(0,0,0,0.45), main = "Normal Q-Q")
-qqline(resid, col = "firebrick")
+abline(h = 0, col = "firebrick"); lines(lowess(fitted(fit), resid(fit)), col = "navy", lwd = 2)
+qqnorm(resid(fit), pch = 16, cex = 0.5, col = rgb(0,0,0,0.45), main = "Normal Q-Q")
+qqline(resid(fit), col = "firebrick")
 par(op)
 ```
 
-The residuals show a $\cup$-shaped curvature (the local Froude exponent grows with speed) and a variance that shrinks as the fitted value grows (heteroscedasticity). Both defects motivate the heteroscedasticity-corrected nonlinear model of parts 3-4. All figures above are produced directly by the code chunks in this notebook.
-
-## 1.1 Robustness to an informative prior
-
-The reference prior above is deliberately *objective*: it lets the data alone estimate $\beta_F$, and we then **verify** the result against the physical value 4. A complementary, more subjective-Bayesian view is to **encode** the physics directly as an informative prior $\beta_F\sim\mathcal N(4,\tau^2)$ (vague on the remaining coefficients and on $\sigma^2$) and ask how strongly the prior would have to insist on 4 to override the data. The full conditionals are closed form, so a short Gibbs sampler suffices; we sweep the prior standard deviation $\tau$.
-
-```{r informative-prior}
-## beta | sigma^2, y  ~ N( V (S0^{-1} m0 + X'y/sigma^2), V ),  V = (S0^{-1} + X'X/sigma^2)^{-1}
-## sigma^2 | beta, y  ~ Inv-Gamma( a0 + n/2 , b0 + ||y - X beta||^2 / 2 )
-set.seed(2026)
-fr  <- which(colnames(X) == "log_Fr")
-XtX <- crossprod(X); Xty <- crossprod(X, y)
-
-gibbs_betaF <- function(tau, n_iter = 8000, burn = 2000) {
-  m0  <- rep(0, p); m0[fr] <- 4                  # prior mean: physics only on beta_F
-  psd <- rep(1000, p); psd[fr] <- tau            # prior sd: vague except beta_F
-  S0_inv <- diag(1 / psd^2); a0 <- 1e-3; b0 <- 1e-3
-  beta <- beta_hat; sig2 <- s2; keep <- numeric(n_iter - burn)
-  for (it in seq_len(n_iter)) {
-    V    <- solve(S0_inv + XtX / sig2)
-    mu   <- V %*% (S0_inv %*% m0 + Xty / sig2)
-    beta <- as.vector(mu + t(chol(V)) %*% rnorm(p))
-    sig2 <- 1 / rgamma(1, a0 + n / 2, b0 + sum((y - X %*% beta)^2) / 2)
-    if (it > burn) keep[it - burn] <- beta[fr]
-  }
-  keep
-}
-
-taus  <- c(0.05, 0.1, 0.2, 0.5)
-draws <- lapply(taus, gibbs_betaF)
-tab <- t(sapply(draws, function(d)
-  c(post_mean = mean(d), q2.5 = quantile(d, .025),
-    q97.5 = quantile(d, .975), P_gt4 = mean(d > 4))))
-rownames(tab) <- sprintf("tau = %.2f", taus)
-round(rbind(tab,
-            reference = c(mean(bF), quantile(bF, .025),
-                          quantile(bF, .975), mean(bF > 4))), 3)
-```
-
-```{r informative-prior-plot, fig.width=7, fig.height=4.2}
-cols <- c("#d7301f", "#fc8d59", "#f1a340", "#2b8cbe")
-plot(density(bF), lwd = 2.6, col = "grey30", xlim = c(3.9, 4.9),
-     main = expression("Posterior of "*beta[F]*" vs prior strength"),
-     xlab = expression(beta[F]))
-for (i in seq_along(taus)) lines(density(draws[[i]]), col = cols[i], lwd = 2)
-abline(v = 4, col = "navy", lty = 2, lwd = 2)
-legend("topright", bty = "n", lwd = 2, col = c("grey30", cols),
-       legend = c("reference  (1/sigma^2)", sprintf("N(4, %.2f^2)", taus)))
-```
-
-With a diffuse prior the analysis reproduces the reference result ($\beta_F\approx 4.69$). As the prior centered at 4 is tightened, the posterior mean is pulled toward 4 -- but only a near-dogmatic prior ($\tau=0.05$, a prior 95% interval of roughly $[3.9,4.1]$) drags it as far as $4.33$, and even then $P(\beta_F>4)=1$. For any moderately diffuse physical prior ($\tau\ge 0.1$) the likelihood dominates and the posterior stays in the range $4.56$--$4.69$. The conclusion that the empirical exponent is genuinely steeper than the textbook $Fn^4$ is therefore **robust to the prior**: it is a feature of the data ($n=308$), not an artifact of the non-informative choice. This is also a clean illustration of prior--data conflict -- the likelihood is informative enough to overwhelm all but an unreasonably confident prior.
+The residuals show a $\cup$-shaped curvature (the local Froude exponent grows with speed) and a variance that shrinks as the fitted value grows (heteroscedasticity). Both defects motivate the heteroscedasticity-corrected nonlinear model of parts 3-4.
