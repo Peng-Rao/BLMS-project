@@ -83,6 +83,29 @@ backend=biber]{biblatex}
 \setcounter{page}{1}
 \pagenumbering{arabic}
 
+\section{Data and Problem}
+\label{sec:intro}
+
+We analyse the \emph{Yacht Hydrodynamics} dataset from the UCI Machine
+Learning Repository \autocite{ortigosa2007yacht,gerritsma1981delft}: $22$
+sailing-yacht hull forms tested at several speeds, for $n=308$ observations.
+Each row holds five hull \emph{form factors} --- \texttt{LCB},
+\texttt{prismatic}, \texttt{L\_disp}, \texttt{beam\_draught} and
+\texttt{L\_beam} (constant within a hull) --- and the dimensionless
+\textbf{Froude number} $Fn=v/\sqrt{gL}\in[0.125,0.45]$; the response is the
+residuary resistance per unit weight of displacement (\cref{tab:variables}).
+
+For slender hulls, physics predicts a power law
+$\mathrm{resistance}\propto Fn^{\,\gamma_F}$ with $\gamma_F\approx4$. We study
+it in a Bayesian framework:
+\begin{enumerate}
+	\setlength\itemsep{1pt}
+	\item log--log regression to estimate and \emph{verify} $\hat\beta_F\approx4$;
+	\item BAS/BMA over the $2^5$ hull-factor submodels, to see which carry signal once $Fn$ is included;
+	\item a heteroscedasticity-corrected nonlinear model on the retained factors, contrasted with the log--log fit;
+	\item posterior predictive curves, with and without the heteroscedasticity treatment, against the data.
+\end{enumerate}
+
 \section{Log--log Regression}
 \label{sec:loglog}
 
@@ -98,7 +121,9 @@ The physics of slender sailing hulls suggests that, in the bulk regime, the resi
 \end{equation}
 where $\mathrm{hull}_k$ denotes the five geometric form factors. Since the smallest observed resistance is $0.01>0$, the logarithm is well defined for every record and no offset is required. Writing the $n=308$ observations in matrix form as $\bm{y}=\bm{X}\bm{\beta}+\bm{\varepsilon}$ with $\bm{\beta}\in\mathbb{R}^{p}$, $p=7$, we adopt the non-informative \textbf{Jeffreys reference prior}
 \begin{equation}
-	\pi(\bm{\beta},\sigma^2)\;\propto\;\sigma^{-2},
+	\pi(\bm{\beta}\mid\sigma^2)\;\propto\;1,
+	\qquad
+	\pi(\sigma^2)\;\propto\;\sigma^{-2},
 	\label{eq:prior}
 \end{equation}
 which lets the data dominate the inference and provides a transparent
@@ -106,7 +131,7 @@ Bayesian baseline against which the model-selection and
 heteroscedasticity-corrected analyses of the following sections can be
 compared.
 
-\subsection{Posterior and Monte Carlo sampling}
+\subsection{Posterior and credible intervals}
 
 Under the prior \eqref{eq:prior} the posterior is Normal--Inverse--Gamma
 and is available in closed form. With
@@ -121,14 +146,17 @@ variance,
 	\mathcal{N}\!\left(\hat{\bm{\beta}},\,
 	             \sigma^2\,(\bm{X}^{\!\top}\bm{X})^{-1}\right). \label{eq:post_beta}
 \end{align}
-We sample the joint posterior by Monte Carlo: for each of
-$M=20{,}000$ iterations we first draw $\sigma^2$ from
-\eqref{eq:post_sigma} via a scaled inverse-$\chi^2$ variate and then draw
-$\bm{\beta}$ from the Gaussian \eqref{eq:post_beta}. The resulting sample
-$\{\bm{\beta}^{(m)},\sigma^{2(m)}\}_{m=1}^{M}$ marginalises the regression
-coefficients over $\sigma^2$ (a multivariate Student-$t$) and is used to
-obtain all posterior means, standard deviations and $95\%$ credible
-intervals, as well as the credible band of the fitted curve.
+Marginalising \eqref{eq:post_beta} over $\sigma^2$ yields a multivariate
+Student-$t$ posterior for $\bm{\beta}$, centred at the least-squares estimate
+$\hat{\bm{\beta}}$ with scale matrix $s^2(\bm{X}^{\!\top}\bm{X})^{-1}$ and
+$n-p$ degrees of freedom. A direct consequence is that, under this reference
+prior, the posterior $95\%$ credible intervals are \emph{numerically
+identical} to the classical OLS confidence intervals, and any posterior
+probability (such as $\Pr(\beta_F>4\mid\bm{y})$) follows from the same
+Student-$t$. No simulation is therefore required: we read all point
+estimates, $95\%$ credible intervals and the credible band of the fitted
+curve directly off the fitted linear model (\texttt{lm} and \texttt{confint}
+in \textsf{R}).
 
 \subsection{Results}
 
@@ -143,8 +171,8 @@ confirming the expected power-law behaviour
 $\mathrm{resistance}\sim Fn^{\,4}$ and verifying the project requirement
 $\hat\beta_F\approx 4$. \Cref{fig:loglog} (left) shows the log--log
 scatter with the posterior-mean line and its $95\%$ credible band: the
-band is extremely tight, reflecting the $300$ observations and the strong
-signal of the Froude number. The Monte Carlo posterior of $\beta_F$ is
+band is extremely tight, reflecting the $308$ observations and the strong
+signal of the Froude number. The posterior of $\beta_F$ is
 displayed in \cref{fig:loglog} (right); the whole posterior mass sits
 above the nominal value $4$ ($\Pr(\beta_F>4\mid\bm{y})\approx 1$), so the
 empirical exponent is best described as \emph{slightly steeper} than the
@@ -155,12 +183,12 @@ textbook value of four.
 	\subfloat[Power-law fit on log--log axes.]{%
 		\includegraphics[width=0.49\textwidth]{figures/loglog_scatter.pdf}}
 	\hfill
-	\subfloat[Monte Carlo posterior of $\beta_F$.]{%
+	\subfloat[Posterior of $\beta_F$.]{%
 		\includegraphics[width=0.49\textwidth]{figures/posterior_betaF.pdf}}
 	\caption{Left: observed $\log(\mathrm{resistance})$ against
 		$\log(\mathrm{Froude})$ with the posterior-mean regression line (hull
 		covariates held at their means) and its $95\%$ credible band. Right:
-		Monte Carlo posterior density of the Froude exponent $\beta_F$; the
+		Student-$t$ posterior density of the Froude exponent $\beta_F$; the
 		dashed lines mark the $95\%$ credible interval and the solid blue line
 		the physical reference value $\beta_F=4$.}
 	\label{fig:loglog}
@@ -216,72 +244,6 @@ subsequent section.
 	\label{fig:forest}
 \end{figure}
 
-\subsection{Robustness to an informative prior}
-\label{sec:informative}
-
-The reference prior \eqref{eq:prior} is deliberately objective: it lets the
-data alone estimate the Froude exponent, which we then \emph{verify} against
-the physical value $4$. A complementary, fully Bayesian alternative is to
-\emph{encode} the physics directly through an informative prior on the
-exponent,
-\begin{equation}
-	\beta_F \sim \mathcal{N}(4,\tau^2),
-	\label{eq:inf_prior}
-\end{equation}
-while keeping the remaining coefficients and $\sigma^2$ vague. The prior
-standard deviation $\tau$ controls how strongly the prior insists on the
-textbook value. Because the resulting full conditionals remain in closed
-form --- $\bm{\beta}\mid\sigma^2,\bm{y}$ Gaussian and
-$\sigma^2\mid\bm{\beta},\bm{y}$ Inverse-Gamma --- the posterior is obtained
-with a short Gibbs sampler, and we sweep $\tau\in\{0.05,0.1,0.2,0.5\}$.
-
-\Cref{tab:informative} and \cref{fig:informative} summarise the effect. With
-a diffuse prior the analysis reproduces the reference result
-($\beta_F\approx4.69$). As the prior is tightened around $4$ the posterior
-mean is pulled downwards, but the data resist: only a near-dogmatic prior
-($\tau=0.05$, a prior $95\%$ interval of roughly $[3.9,4.1]$) drags the
-posterior mean as far as $4.33$, and even then
-$\Pr(\beta_F>4\mid\bm{y})=1$. For any moderately diffuse physical prior
-($\tau\ge0.1$) the likelihood dominates and the posterior stays in the range
-$4.56$--$4.69$. The conclusion that the empirical exponent is genuinely
-steeper than $Fn^{\,4}$ is therefore \textbf{robust to the prior}: it is a
-feature of the $n=308$ observations rather than an artefact of the
-non-informative choice. Equivalently, this is a transparent instance of
-prior--data conflict, in which a sufficiently informative likelihood
-overwhelms all but an unreasonably confident prior.
-
-\begin{table}[H]
-	\centering
-	\caption{Posterior of the Froude exponent $\beta_F$ under an informative
-		prior $\mathcal{N}(4,\tau^2)$ of increasing strength, obtained by Gibbs
-		sampling, compared with the reference-prior result.}
-	\label{tab:informative}
-	\begin{tabular}{l r r r r}
-		\toprule
-		\textbf{Prior on $\beta_F$} & \textbf{Mean} & \textbf{2.5\%} & \textbf{97.5\%} & $\Pr(\beta_F>4)$ \\
-		\midrule
-		$\mathcal{N}(4,0.05^2)$     & $4.33$        & $4.26$         & $4.41$          & $1.00$           \\
-		$\mathcal{N}(4,0.10^2)$     & $4.56$        & $4.47$         & $4.64$          & $1.00$           \\
-		$\mathcal{N}(4,0.20^2)$     & $4.65$        & $4.56$         & $4.74$          & $1.00$           \\
-		$\mathcal{N}(4,0.50^2)$     & $4.68$        & $4.59$         & $4.78$          & $1.00$           \\
-		\midrule
-		reference $\;\sigma^{-2}$   & $4.69$        & $4.60$         & $4.78$          & $1.00$           \\
-		\bottomrule
-	\end{tabular}
-\end{table}
-
-\begin{figure}[H]
-	\centering
-	\includegraphics[width=0.72\textwidth]{figures/posterior_betaF_prior.pdf}
-	\caption{Posterior density of the Froude exponent $\beta_F$ under
-		informative priors $\mathcal{N}(4,\tau^2)$ of increasing strength
-		(coloured) and under the reference prior (grey). The dashed blue line
-		marks the physical value $\beta_F=4$. Tightening the prior toward $4$
-		shifts the posterior only modestly; the data keep it well above $4$
-		unless the prior is unreasonably confident.}
-	\label{fig:informative}
-\end{figure}
-
 \newpage
 
 \section{BAS}
@@ -321,8 +283,9 @@ overwhelms all but an unreasonably confident prior.
 \begin{table}[H]
 	\centering
 	\caption{Posterior summary of the log--log model \eqref{eq:loglog}
-		under the reference prior ($M=20{,}000$ Monte Carlo draws). $\Pr(>0)$
-		is the posterior probability that the coefficient is positive.}
+		under the reference prior. Point estimates and $95\%$ credible intervals
+		coincide with the OLS fit (\texttt{lm}/\texttt{confint}); $\Pr(>0)$ is
+		the posterior probability that the coefficient is positive.}
 	\label{tab:loglog}
 	\begin{tabular}{l r r r r r}
 		\toprule
