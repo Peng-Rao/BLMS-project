@@ -2155,30 +2155,166 @@ print(bma_coef)</code></pre>
 ## L_disp         0.050626   0.132492   0.206460     
 ## beam_draught   0.050565   0.060837   0.565078     
 ## L_beam        -0.047164   0.130663   0.191532</code></pre>
-<p><strong>Conclusion of part 2.</strong> The BAS/BMA step does
-<strong>not</strong> find strong evidence for any single hull-geometry
-covariate once <code>Froude</code> is included. The clearest answer to
-the model-selection question is that <strong>B/draught
-(<code>beam_draught</code>) is the only hull covariate that carries
-moderate signal</strong>, with PIP about <strong>0.565</strong> in the
-rendered output. The remaining variables – <code>LCB</code>,
-<code>prismatic</code>, <code>L_disp</code> (L/disp), and
-<code>L_beam</code> (L/beam) – have weak posterior inclusion
-probabilities, all below 0.50. Therefore, the defensible conclusion is:
-the dominant signal is the Froude power law; hull geometry may have
-small secondary effects, but the data do not strongly identify a stable
-subset of hull covariates in the homoscedastic log-log model.</p>
-<p>This is consistent with part 1: in the full log-log regression, all
-five hull coefficients had 95% intervals crossing zero. BAS/BMA provides
-additional evidence that this is not just a single-model artefact;
-across the whole <span class="math inline"><span class="MathJax_Preview" style="color: inherit;"></span><span class="MathJax" id="MathJax-Element-20-Frame" tabindex="0" data-mathml="&lt;math xmlns=&quot;http://www.w3.org/1998/Math/MathML&quot;&gt;&lt;msup&gt;&lt;mn&gt;2&lt;/mn&gt;&lt;mn&gt;5&lt;/mn&gt;&lt;/msup&gt;&lt;/math&gt;" role="presentation" style="position: relative;"><nobr aria-hidden="true"><span class="math" id="MathJax-Span-309" style="width: 1.193em; display: inline-block;"><span style="display: inline-block; position: relative; width: 0.955em; height: 0px; font-size: 120%;"><span style="position: absolute; clip: rect(1.134em, 1000.96em, 2.384em, -999.997em); top: -2.199em; left: 0em;"><span class="mrow" id="MathJax-Span-310"><span class="msubsup" id="MathJax-Span-311"><span style="display: inline-block; position: relative; width: 0.955em; height: 0px;"><span style="position: absolute; clip: rect(3.158em, 1000.48em, 4.17em, -999.997em); top: -3.985em; left: 0em;"><span class="mn" id="MathJax-Span-312" style="font-family: MathJax_Main;">2</span><span style="display: inline-block; width: 0px; height: 3.991em;"></span></span><span style="position: absolute; top: -4.402em; left: 0.479em;"><span class="mn" id="MathJax-Span-313" style="font-size: 70.7%; font-family: MathJax_Main;">5</span><span style="display: inline-block; width: 0px; height: 3.991em;"></span></span></span></span></span><span style="display: inline-block; width: 0px; height: 2.205em;"></span></span></span><span style="display: inline-block; overflow: hidden; vertical-align: -0.068em; border-left: 0px solid; width: 0px; height: 1.218em;"></span></span></nobr><span class="MJX_Assistive_MathML" role="presentation"><math xmlns="http://www.w3.org/1998/Math/MathML"><msup><mn>2</mn><mn>5</mn></msup></math></span></span><script type="math/tex" id="MathJax-Element-20">2^5</script></span> model space,
-no hull variable receives overwhelming posterior support.</p>
-<p>For parts 3 and 4, this gives a clear continuation point. The
-nonlinear heteroscedasticity-corrected model should carry forward
-<strong>B/draught (<code>beam_draught</code>)</strong> as the main
-reduced hull-geometry candidate, and it is also reasonable to compare it
-with a no-hull version as a sensitivity check, because the BAS evidence
-for hull effects is moderate rather than strong.</p>
+<div id="prior-sensitivity-analysis-for-basbma" class="section level3">
+<h3>Prior sensitivity analysis for BAS/BMA</h3>
+<p>The project instructions ask for posterior analysis and, where
+appropriate, sensitivity analysis. Since the baseline PIP values are not
+high, we should check whether the conclusion about hull-geometry
+covariates depends strongly on the prior used in <code>bas.lm</code>.
+Therefore, we repeat the same BAS/BMA enumeration with three standard
+choices from the linear-regression/model-selection material:</p>
+<ul>
+<li><code>prior = "BIC"</code>: the baseline reference/BIC approximation
+used above;</li>
+<li><code>prior = "g-prior"</code>, with <code>alpha = n</code>:
+Zellner’s <span class="math inline"><span class="MathJax_Preview" style="color: inherit;"></span><span class="MathJax" id="MathJax-Element-20-Frame" tabindex="0" data-mathml="&lt;math xmlns=&quot;http://www.w3.org/1998/Math/MathML&quot;&gt;&lt;mi&gt;g&lt;/mi&gt;&lt;/math&gt;" role="presentation" style="position: relative;"><nobr aria-hidden="true"><span class="math" id="MathJax-Span-309" style="width: 0.598em; display: inline-block;"><span style="display: inline-block; position: relative; width: 0.479em; height: 0px; font-size: 120%;"><span style="position: absolute; clip: rect(1.61em, 1000.48em, 2.562em, -999.997em); top: -2.199em; left: 0em;"><span class="mrow" id="MathJax-Span-310"><span class="mi" id="MathJax-Span-311" style="font-family: MathJax_Math-italic;">g<span style="display: inline-block; overflow: hidden; height: 1px; width: 0.003em;"></span></span></span><span style="display: inline-block; width: 0px; height: 2.205em;"></span></span></span><span style="display: inline-block; overflow: hidden; vertical-align: -0.282em; border-left: 0px solid; width: 0px; height: 0.932em;"></span></span></nobr><span class="MJX_Assistive_MathML" role="presentation"><math xmlns="http://www.w3.org/1998/Math/MathML"><mi>g</mi></math></span></span><script type="math/tex" id="MathJax-Element-20">g</script></span>-prior with <span class="math inline"><span class="MathJax_Preview" style="color: inherit;"></span><span class="MathJax" id="MathJax-Element-21-Frame" tabindex="0" data-mathml="&lt;math xmlns=&quot;http://www.w3.org/1998/Math/MathML&quot;&gt;&lt;mi&gt;g&lt;/mi&gt;&lt;mo&gt;=&lt;/mo&gt;&lt;mi&gt;n&lt;/mi&gt;&lt;/math&gt;" role="presentation" style="position: relative;"><nobr aria-hidden="true"><span class="math" id="MathJax-Span-312" style="width: 2.979em; display: inline-block;"><span style="display: inline-block; position: relative; width: 2.443em; height: 0px; font-size: 120%;"><span style="position: absolute; clip: rect(1.61em, 1002.44em, 2.562em, -999.997em); top: -2.199em; left: 0em;"><span class="mrow" id="MathJax-Span-313"><span class="mi" id="MathJax-Span-314" style="font-family: MathJax_Math-italic;">g<span style="display: inline-block; overflow: hidden; height: 1px; width: 0.003em;"></span></span><span class="mo" id="MathJax-Span-315" style="font-family: MathJax_Main; padding-left: 0.301em;">=</span><span class="mi" id="MathJax-Span-316" style="font-family: MathJax_Math-italic; padding-left: 0.301em;">n</span></span><span style="display: inline-block; width: 0px; height: 2.205em;"></span></span></span><span style="display: inline-block; overflow: hidden; vertical-align: -0.282em; border-left: 0px solid; width: 0px; height: 0.932em;"></span></span></nobr><span class="MJX_Assistive_MathML" role="presentation"><math xmlns="http://www.w3.org/1998/Math/MathML"><mi>g</mi><mo>=</mo><mi>n</mi></math></span></span><script type="math/tex" id="MathJax-Element-21">g=n</script></span>, a common weakly informative
+choice;</li>
+<li><code>prior = "JZS"</code>: Jeffreys-Zellner-Siow prior, a
+heavy-tailed alternative to a fixed <span class="math inline"><span class="MathJax_Preview" style="color: inherit;"></span><span class="MathJax" id="MathJax-Element-22-Frame" tabindex="0" data-mathml="&lt;math xmlns=&quot;http://www.w3.org/1998/Math/MathML&quot;&gt;&lt;mi&gt;g&lt;/mi&gt;&lt;/math&gt;" role="presentation" style="position: relative;"><nobr aria-hidden="true"><span class="math" id="MathJax-Span-317" style="width: 0.598em; display: inline-block;"><span style="display: inline-block; position: relative; width: 0.479em; height: 0px; font-size: 120%;"><span style="position: absolute; clip: rect(1.61em, 1000.48em, 2.562em, -999.997em); top: -2.199em; left: 0em;"><span class="mrow" id="MathJax-Span-318"><span class="mi" id="MathJax-Span-319" style="font-family: MathJax_Math-italic;">g<span style="display: inline-block; overflow: hidden; height: 1px; width: 0.003em;"></span></span></span><span style="display: inline-block; width: 0px; height: 2.205em;"></span></span></span><span style="display: inline-block; overflow: hidden; vertical-align: -0.282em; border-left: 0px solid; width: 0px; height: 0.932em;"></span></span></nobr><span class="MJX_Assistive_MathML" role="presentation"><math xmlns="http://www.w3.org/1998/Math/MathML"><mi>g</mi></math></span></span><script type="math/tex" id="MathJax-Element-22">g</script></span>-prior.</li>
+</ul>
+<p>In all cases we keep the same model prior,
+<code>modelprior = uniform()</code>, and we still force
+<code>log_Fr</code> to be present in every model. Therefore, each
+sensitivity run answers the same question: <strong>among
+<code>LCB</code>, <code>prismatic</code>, <code>L_disp</code>,
+<code>beam_draught</code>, and <code>L_beam</code>, which variables
+carry signal once Froude is already included?</strong></p>
+<pre class="r"><code class="hljs">fit_bas_prior &lt;- <span class="hljs-keyword">function</span>(prior_name, alpha = <span class="hljs-literal">NULL</span>) {
+  args &lt;- list(
+    formula = log_res ~ log_Fr + LCB + prismatic + L_disp + beam_draught + L_beam,
+    data = yh,
+    prior = prior_name,
+    modelprior = uniform(),
+    method = <span class="hljs-string">"deterministic"</span>,
+    n.models = n_models_expected,
+    include.always = ~ log_Fr,
+    force.heredity = <span class="hljs-literal">FALSE</span>
+  )
+  <span class="hljs-keyword">if</span> (!is.null(alpha)) {
+    args$alpha &lt;- alpha
+  }
+  do.call(bas.lm, args)
+}
+
+extract_pip_table &lt;- <span class="hljs-keyword">function</span>(fit_obj, prior_label) {
+  mm &lt;- as.data.frame(make_which_matrix(fit_obj$which, term_names))
+  pp &lt;- fit_obj$postprobs / sum(fit_obj$postprobs)
+  mm$post_prob &lt;- pp
+
+  <span class="hljs-comment"># Same checks as in the baseline analysis.</span>
+  stopifnot(length(pp) == nrow(mm))
+  stopifnot(length(pp) == n_models_expected)
+  stopifnot(all(mm$log_Fr == <span class="hljs-number">1</span>))
+
+  pip &lt;- sapply(hull_covariates, <span class="hljs-keyword">function</span>(v) {
+    sum(mm[[v]] * mm$post_prob)
+  })
+
+  out &lt;- data.frame(
+    prior = prior_label,
+    requested_name = unname(label_map[names(pip)]),
+    R_variable = names(pip),
+    PIP = round(as.numeric(pip), <span class="hljs-number">3</span>),
+    evidence = ifelse(pip &gt;= <span class="hljs-number">0.75</span>, <span class="hljs-string">"strong"</span>,
+                      ifelse(pip &gt;= <span class="hljs-number">0.50</span>, <span class="hljs-string">"moderate"</span>, <span class="hljs-string">"weak"</span>)),
+    row.names = <span class="hljs-literal">NULL</span>
+  )
+  out[order(-out$PIP), ]
+}
+
+bas_fits_sensitivity &lt;- list(
+  <span class="hljs-string">"BIC / reference"</span> = bas_fit,
+  <span class="hljs-string">"g-prior (g = n)"</span> = fit_bas_prior(<span class="hljs-string">"g-prior"</span>, alpha = nrow(yh)),
+  <span class="hljs-string">"JZS"</span> = fit_bas_prior(<span class="hljs-string">"JZS"</span>)
+)
+
+sensitivity_table &lt;- do.call(
+  rbind,
+  lapply(names(bas_fits_sensitivity), <span class="hljs-keyword">function</span>(pr) {
+    extract_pip_table(bas_fits_sensitivity[[pr]], pr)
+  })
+)
+rownames(sensitivity_table) &lt;- <span class="hljs-literal">NULL</span>
+
+<span class="hljs-comment"># Full sensitivity table: PIP for every hull covariate under every prior.</span>
+sensitivity_table</code></pre>
+<div data-pagedtable="true" pagedtable-page="0" class="pagedtable-wrapper">
+<script data-pagedtable-source="" type="application/json">
+{"columns":[{"label":["prior"],"name":[1],"type":["chr"],"align":["left"]},{"label":["requested_name"],"name":[2],"type":["chr"],"align":["left"]},{"label":["R_variable"],"name":[3],"type":["chr"],"align":["left"]},{"label":["PIP"],"name":[4],"type":["dbl"],"align":["right"]},{"label":["evidence"],"name":[5],"type":["chr"],"align":["left"]}],"data":[{"1":"BIC / reference","2":"B/draught","3":"beam_draught","4":"0.565","5":"moderate"},{"1":"BIC / reference","2":"prismatic","3":"prismatic","4":"0.265","5":"weak"},{"1":"BIC / reference","2":"LCB","3":"LCB","4":"0.210","5":"weak"},{"1":"BIC / reference","2":"L/disp","3":"L_disp","4":"0.206","5":"weak"},{"1":"BIC / reference","2":"L/beam","3":"L_beam","4":"0.192","5":"weak"},{"1":"g-prior (g = n)","2":"B/draught","3":"beam_draught","4":"0.499","5":"weak"},{"1":"g-prior (g = n)","2":"prismatic","3":"prismatic","4":"0.217","5":"weak"},{"1":"g-prior (g = n)","2":"LCB","3":"LCB","4":"0.186","5":"weak"},{"1":"g-prior (g = n)","2":"L/disp","3":"L_disp","4":"0.182","5":"weak"},{"1":"g-prior (g = n)","2":"L/beam","3":"L_beam","4":"0.166","5":"weak"},{"1":"JZS","2":"B/draught","3":"beam_draught","4":"0.243","5":"weak"},{"1":"JZS","2":"LCB","3":"LCB","4":"0.060","5":"weak"},{"1":"JZS","2":"prismatic","3":"prismatic","4":"0.057","5":"weak"},{"1":"JZS","2":"L/disp","3":"L_disp","4":"0.051","5":"weak"},{"1":"JZS","2":"L/beam","3":"L_beam","4":"0.042","5":"weak"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+  </script>
+<div class="pagedtable pagedtable-not-empty" style="opacity: 1;"><table style="visibility: hidden; position: absolute; white-space: nowrap; height: auto; width: auto;"><tr><td>ABCDEFGHIJ0123456789</td></tr></table><table cellspacing="0" class="table table-condensed"><thead><tr><th align="left" style="text-align: left; max-width: 135px; min-width: 135px;"><div class="pagedtable-header-name">prior</div><div class="pagedtable-header-type">&lt;chr&gt;</div></th><th align="left" style="text-align: left; max-width: 126px; min-width: 126px;"><div class="pagedtable-header-name">requested_name</div><div class="pagedtable-header-type">&lt;chr&gt;</div></th><th align="left" style="text-align: left; max-width: 108px; min-width: 108px;"><div class="pagedtable-header-name">R_variable</div><div class="pagedtable-header-type">&lt;chr&gt;</div></th><th align="right" style="text-align: right; max-width: 45px; min-width: 45px;"><div class="pagedtable-header-name">PIP</div><div class="pagedtable-header-type">&lt;dbl&gt;</div></th><th align="left" style="text-align: left; max-width: 72px; min-width: 72px;"><div class="pagedtable-header-name">evidence</div><div class="pagedtable-header-type">&lt;chr&gt;</div></th></tr></thead><tbody><tr class="odd"><td align="left" style="text-align: left; max-width: 135px; min-width: 135px;">BIC / reference</td><td align="left" style="text-align: left; max-width: 126px; min-width: 126px;">B/draught</td><td align="left" style="text-align: left; max-width: 108px; min-width: 108px;">beam_draught</td><td align="right" style="text-align: right; max-width: 45px; min-width: 45px;">0.565</td><td align="left" style="text-align: left; max-width: 72px; min-width: 72px;">moderate</td></tr><tr class="even"><td align="left" style="text-align: left; max-width: 135px; min-width: 135px;">BIC / reference</td><td align="left" style="text-align: left; max-width: 126px; min-width: 126px;">prismatic</td><td align="left" style="text-align: left; max-width: 108px; min-width: 108px;">prismatic</td><td align="right" style="text-align: right; max-width: 45px; min-width: 45px;">0.265</td><td align="left" style="text-align: left; max-width: 72px; min-width: 72px;">weak</td></tr><tr class="odd"><td align="left" style="text-align: left; max-width: 135px; min-width: 135px;">BIC / reference</td><td align="left" style="text-align: left; max-width: 126px; min-width: 126px;">LCB</td><td align="left" style="text-align: left; max-width: 108px; min-width: 108px;">LCB</td><td align="right" style="text-align: right; max-width: 45px; min-width: 45px;">0.210</td><td align="left" style="text-align: left; max-width: 72px; min-width: 72px;">weak</td></tr><tr class="even"><td align="left" style="text-align: left; max-width: 135px; min-width: 135px;">BIC / reference</td><td align="left" style="text-align: left; max-width: 126px; min-width: 126px;">L/disp</td><td align="left" style="text-align: left; max-width: 108px; min-width: 108px;">L_disp</td><td align="right" style="text-align: right; max-width: 45px; min-width: 45px;">0.206</td><td align="left" style="text-align: left; max-width: 72px; min-width: 72px;">weak</td></tr><tr class="odd"><td align="left" style="text-align: left; max-width: 135px; min-width: 135px;">BIC / reference</td><td align="left" style="text-align: left; max-width: 126px; min-width: 126px;">L/beam</td><td align="left" style="text-align: left; max-width: 108px; min-width: 108px;">L_beam</td><td align="right" style="text-align: right; max-width: 45px; min-width: 45px;">0.192</td><td align="left" style="text-align: left; max-width: 72px; min-width: 72px;">weak</td></tr><tr class="even"><td align="left" style="text-align: left; max-width: 135px; min-width: 135px;">g-prior (g = n)</td><td align="left" style="text-align: left; max-width: 126px; min-width: 126px;">B/draught</td><td align="left" style="text-align: left; max-width: 108px; min-width: 108px;">beam_draught</td><td align="right" style="text-align: right; max-width: 45px; min-width: 45px;">0.499</td><td align="left" style="text-align: left; max-width: 72px; min-width: 72px;">weak</td></tr><tr class="odd"><td align="left" style="text-align: left; max-width: 135px; min-width: 135px;">g-prior (g = n)</td><td align="left" style="text-align: left; max-width: 126px; min-width: 126px;">prismatic</td><td align="left" style="text-align: left; max-width: 108px; min-width: 108px;">prismatic</td><td align="right" style="text-align: right; max-width: 45px; min-width: 45px;">0.217</td><td align="left" style="text-align: left; max-width: 72px; min-width: 72px;">weak</td></tr><tr class="even"><td align="left" style="text-align: left; max-width: 135px; min-width: 135px;">g-prior (g = n)</td><td align="left" style="text-align: left; max-width: 126px; min-width: 126px;">LCB</td><td align="left" style="text-align: left; max-width: 108px; min-width: 108px;">LCB</td><td align="right" style="text-align: right; max-width: 45px; min-width: 45px;">0.186</td><td align="left" style="text-align: left; max-width: 72px; min-width: 72px;">weak</td></tr><tr class="odd"><td align="left" style="text-align: left; max-width: 135px; min-width: 135px;">g-prior (g = n)</td><td align="left" style="text-align: left; max-width: 126px; min-width: 126px;">L/disp</td><td align="left" style="text-align: left; max-width: 108px; min-width: 108px;">L_disp</td><td align="right" style="text-align: right; max-width: 45px; min-width: 45px;">0.182</td><td align="left" style="text-align: left; max-width: 72px; min-width: 72px;">weak</td></tr><tr class="even"><td align="left" style="text-align: left; max-width: 135px; min-width: 135px;">g-prior (g = n)</td><td align="left" style="text-align: left; max-width: 126px; min-width: 126px;">L/beam</td><td align="left" style="text-align: left; max-width: 108px; min-width: 108px;">L_beam</td><td align="right" style="text-align: right; max-width: 45px; min-width: 45px;">0.166</td><td align="left" style="text-align: left; max-width: 72px; min-width: 72px;">weak</td></tr></tbody></table><div class="pagedtable-footer"><a class="pagedtable-index-nav">Next</a><div class="pagedtable-indexes"><a class="pagedtable-index pagedtable-index-current" data-page-index="0">1</a><a class="pagedtable-index" data-page-index="1">2</a></div><a class="pagedtable-index-nav pagedtable-index-nav-disabled">Previous</a><div class="pagedtable-info" title="1-10 of 15 rows">1-10 of 15 rows</div></div></div></div>
+<pre class="r"><code class="hljs"><span class="hljs-comment"># Most supported hull covariate under each prior.</span>
+top_by_prior &lt;- do.call(
+  rbind,
+  lapply(split(sensitivity_table, sensitivity_table$prior), <span class="hljs-keyword">function</span>(d) {
+    d[which.max(d$PIP), ]
+  })
+)
+rownames(top_by_prior) &lt;- <span class="hljs-literal">NULL</span>
+
+top_by_prior</code></pre>
+<div data-pagedtable="true" pagedtable-page="0" class="pagedtable-wrapper">
+<script data-pagedtable-source="" type="application/json">
+{"columns":[{"label":["prior"],"name":[1],"type":["chr"],"align":["left"]},{"label":["requested_name"],"name":[2],"type":["chr"],"align":["left"]},{"label":["R_variable"],"name":[3],"type":["chr"],"align":["left"]},{"label":["PIP"],"name":[4],"type":["dbl"],"align":["right"]},{"label":["evidence"],"name":[5],"type":["chr"],"align":["left"]}],"data":[{"1":"BIC / reference","2":"B/draught","3":"beam_draught","4":"0.565","5":"moderate"},{"1":"g-prior (g = n)","2":"B/draught","3":"beam_draught","4":"0.499","5":"weak"},{"1":"JZS","2":"B/draught","3":"beam_draught","4":"0.243","5":"weak"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+  </script>
+<div class="pagedtable pagedtable-not-empty" style="opacity: 1;"><table style="visibility: hidden; position: absolute; white-space: nowrap; height: auto; width: auto;"><tr><td>ABCDEFGHIJ0123456789</td></tr></table><table cellspacing="0" class="table table-condensed"><thead><tr><th align="left" style="text-align: left; max-width: 135px; min-width: 135px;"><div class="pagedtable-header-name">prior</div><div class="pagedtable-header-type">&lt;chr&gt;</div></th><th align="left" style="text-align: left; max-width: 126px; min-width: 126px;"><div class="pagedtable-header-name">requested_name</div><div class="pagedtable-header-type">&lt;chr&gt;</div></th><th align="left" style="text-align: left; max-width: 108px; min-width: 108px;"><div class="pagedtable-header-name">R_variable</div><div class="pagedtable-header-type">&lt;chr&gt;</div></th><th align="right" style="text-align: right; max-width: 45px; min-width: 45px;"><div class="pagedtable-header-name">PIP</div><div class="pagedtable-header-type">&lt;dbl&gt;</div></th><th align="left" style="text-align: left; max-width: 72px; min-width: 72px;"><div class="pagedtable-header-name">evidence</div><div class="pagedtable-header-type">&lt;chr&gt;</div></th></tr></thead><tbody><tr class="odd"><td align="left" style="text-align: left; max-width: 135px; min-width: 135px;">BIC / reference</td><td align="left" style="text-align: left; max-width: 126px; min-width: 126px;">B/draught</td><td align="left" style="text-align: left; max-width: 108px; min-width: 108px;">beam_draught</td><td align="right" style="text-align: right; max-width: 45px; min-width: 45px;">0.565</td><td align="left" style="text-align: left; max-width: 72px; min-width: 72px;">moderate</td></tr><tr class="even"><td align="left" style="text-align: left; max-width: 135px; min-width: 135px;">g-prior (g = n)</td><td align="left" style="text-align: left; max-width: 126px; min-width: 126px;">B/draught</td><td align="left" style="text-align: left; max-width: 108px; min-width: 108px;">beam_draught</td><td align="right" style="text-align: right; max-width: 45px; min-width: 45px;">0.499</td><td align="left" style="text-align: left; max-width: 72px; min-width: 72px;">weak</td></tr><tr class="odd"><td align="left" style="text-align: left; max-width: 135px; min-width: 135px;">JZS</td><td align="left" style="text-align: left; max-width: 126px; min-width: 126px;">B/draught</td><td align="left" style="text-align: left; max-width: 108px; min-width: 108px;">beam_draught</td><td align="right" style="text-align: right; max-width: 45px; min-width: 45px;">0.243</td><td align="left" style="text-align: left; max-width: 72px; min-width: 72px;">weak</td></tr></tbody></table><div class="pagedtable-footer"><div class="pagedtable-info" title="3 rows">3 rows</div></div></div></div>
+<pre class="r"><code class="hljs"><span class="hljs-comment"># Variables that reach at least moderate evidence under every prior.</span>
+moderate_sets &lt;- lapply(split(sensitivity_table, sensitivity_table$prior), <span class="hljs-keyword">function</span>(d) {
+  d$R_variable[d$PIP &gt;= <span class="hljs-number">0.50</span>]
+})
+robust_moderate &lt;- Reduce(intersect, moderate_sets)
+robust_moderate_names &lt;- unname(label_map[robust_moderate])
+
+<span class="hljs-keyword">if</span> (length(robust_moderate) == <span class="hljs-number">0</span>) {
+  sensitivity_answer &lt;- paste(
+    <span class="hljs-string">"No hull covariate reaches PIP &gt;= 0.50 under all priors."</span>,
+    <span class="hljs-string">"The safest conclusion is that hull effects are weak and prior-sensitive once Froude is included."</span>
+  )
+} <span class="hljs-keyword">else</span> {
+  sensitivity_answer &lt;- paste(
+    paste(robust_moderate_names, collapse = <span class="hljs-string">", "</span>),
+    <span class="hljs-string">"is/are the hull covariate(s) with at least moderate evidence under all priors."</span>,
+    <span class="hljs-string">"The remaining hull covariates have weak or prior-sensitive support."</span>
+  )
+}
+
+cat(<span class="hljs-string">"Sensitivity answer:"</span>, sensitivity_answer, <span class="hljs-string">"\n"</span>)</code></pre>
+<pre><code class="hljs">## Sensitivity answer: No hull covariate reaches PIP &gt;= 0.50 under all priors. The safest conclusion is that hull effects are weak and prior-sensitive once Froude is included.</code></pre>
+<p>The sensitivity analysis is important because the baseline PIP values
+are modest. It avoids overclaiming from a single prior. If the same hull
+covariate remains the top candidate or the only variable with at least
+moderate inclusion probability across <code>BIC</code>, Zellner’s
+<code>g-prior</code>, and <code>JZS</code>, then it is reasonable to
+carry that variable forward into the nonlinear model. If the conclusion
+changes across priors, then the correct interpretation is more cautious:
+the data do not strongly identify a stable hull-geometry effect once
+Froude is included.</p>
+<p><strong>Sensitivity-based interpretation.</strong> No hull covariate
+reaches PIP &gt;= 0.50 under all priors. The safest conclusion is that
+hull effects are weak and prior-sensitive once Froude is included.</p>
+<p><strong>Conclusion of part 2.</strong> The BAS/BMA analysis confirms
+that <code>log_Fr</code> is the dominant explanatory variable and that
+the hull-geometry covariates provide, at most, secondary information
+once Froude is already included in the model. Under the baseline
+BIC/reference specification, <strong>B/draught</strong>
+(<code>beam_draught</code>) has the largest posterior inclusion
+probability, approximately <strong>0.565</strong>, so it is the main
+candidate among the five hull covariates. However, this is only moderate
+evidence, not strong evidence.</p>
+<p>The prior sensitivity analysis gives a more cautious interpretation.
+When the BAS/BMA enumeration is repeated using alternative priors, such
+as Zellner’s <code>g-prior</code> and the <code>JZS</code> prior, no
+hull covariate reaches PIP ≥ 0.50 under all prior choices. Therefore,
+the contribution of the hull-geometry variables is not fully robust to
+the prior specification.</p>
+<p>Overall, the safest conclusion is that <strong>Froude explains the
+main resistance scaling</strong>, while the hull-geometry effects are
+weak to moderate and prior-sensitive. Among them,
+<strong>B/draught</strong> (<code>beam_draught</code>) is the most
+defensible reduced candidate to carry forward into the nonlinear
+heteroscedasticity-corrected model of part 3, but it should also be
+compared with a no-hull model as a sensitivity check.</p>
+</div>
 </div>
 
 
