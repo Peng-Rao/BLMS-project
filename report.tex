@@ -86,21 +86,12 @@ backend=biber]{biblatex}
 \section{Data and Problem}
 \label{sec:intro}
 
-We analyse the \emph{Yacht Hydrodynamics} dataset from the UCI Machine
-Learning Repository \autocite{ortigosa2007yacht,gerritsma1981delft}: $22$
-sailing-yacht hull forms tested at several speeds, for $n=308$ observations.
-Each row holds five hull \emph{form factors} --- \texttt{LCB},
-\texttt{prismatic}, \texttt{L\_disp}, \texttt{beam\_draught} and
-\texttt{L\_beam} (constant within a hull) --- and the dimensionless
-\textbf{Froude number} $Fn=v/\sqrt{gL}\in[0.125,0.45]$; the response is the
-residuary resistance per unit weight of displacement (\cref{tab:variables}).
+We analyse the \emph{Yacht Hydrodynamics} dataset from the UCI Machine Learning Repository \autocite{ortigosa2007yacht,gerritsma1981delft}: $22$ sailing-yacht hull forms tested at several speeds, for $n=308$ observations. Each row holds five hull \emph{form factors} --- \texttt{LCB}, \texttt{prismatic}, \texttt{L\_disp}, \texttt{beam\_draught} and \texttt{L\_beam} (constant within a hull) --- and the dimensionless \textbf{Froude number} $Fn=v/\sqrt{gL}\in[0.125,0.45]$; the response is the residuary resistance per unit weight of displacement (\cref{tab:variables}).
 
-For slender hulls, physics predicts a power law
-$\mathrm{resistance}\propto Fn^{\,\gamma_F}$ with $\gamma_F\approx4$. We study
-it in a Bayesian framework:
+For slender hulls, physics predicts a power law $\mathrm{resistance}\propto Fn^{\,\gamma_F}$ with $\gamma_F\approx4$. We study it in a Bayesian framework:
 \begin{enumerate}
 	\setlength\itemsep{1pt}
-	\item log--log regression to estimate and \emph{verify} $\hat\beta_F\approx4$;
+	\item log--log regression to estimate and \emph{verify} $\hat\beta_F\approx4$, with a prior-sensitivity check;
 	\item BAS/BMA over the $2^5$ hull-factor submodels, to see which carry signal once $Fn$ is included;
 	\item a heteroscedasticity-corrected nonlinear model on the retained factors, contrasted with the log--log fit;
 	\item posterior predictive curves, with and without the heteroscedasticity treatment, against the data.
@@ -111,7 +102,7 @@ it in a Bayesian framework:
 
 \subsection{Model and prior}
 
-The physics of slender sailing hulls suggests that, in the bulk regime, the residuary resistance grows as a power of the \textbf{Froude number}, $\mathrm{resistance}\propto Fn^{\,\gamma_F}$ with $\gamma_F$ close to $4$. Taking logarithms turns this multiplicative law into a linear model, in which the exponent appears directly as a regression slope. We therefore fit
+Taking logarithms turns the physical power law $\mathrm{resistance}\propto Fn^{\,\gamma_F}$ into a linear model in which the exponent appears directly as a regression slope. We therefore fit
 \begin{equation}
 	\log(\mathrm{resistance})
 	= \beta_0 + \beta_F\,\log(\mathrm{Froude})
@@ -119,64 +110,35 @@ The physics of slender sailing hulls suggests that, in the bulk regime, the resi
 	\qquad \varepsilon \sim \mathcal{N}(0,\sigma^2),
 	\label{eq:loglog}
 \end{equation}
-where $\mathrm{hull}_k$ denotes the five geometric form factors. Since the smallest observed resistance is $0.01>0$, the logarithm is well defined for every record and no offset is required. Writing the $n=308$ observations in matrix form as $\bm{y}=\bm{X}\bm{\beta}+\bm{\varepsilon}$ with $\bm{\beta}\in\mathbb{R}^{p}$, $p=7$, we adopt the non-informative \textbf{Jeffreys reference prior}
+where $\mathrm{hull}_k$ denotes the five geometric form factors; the smallest observed resistance is $0.01>0$, so the logarithm is well defined for every record and no offset is required. As a baseline we adopt the non-informative \textbf{Jeffreys reference prior}
 \begin{equation}
 	\pi(\bm{\beta}\mid\sigma^2)\;\propto\;1,
 	\qquad
 	\pi(\sigma^2)\;\propto\;\sigma^{-2},
 	\label{eq:prior}
 \end{equation}
-which lets the data dominate the inference and provides a transparent
-Bayesian baseline against which the model-selection and
-heteroscedasticity-corrected analyses of the following sections can be
-compared.
+which lets the data dominate the inference; the sensitivity of the conclusions to an informative prior is examined in \cref{sec:informative}.
 
 \subsection{Posterior and credible intervals}
 
-Under the prior \eqref{eq:prior} the posterior is Normal--Inverse--Gamma
-and is available in closed form. With
-$\hat{\bm{\beta}}=(\bm{X}^{\!\top}\bm{X})^{-1}\bm{X}^{\!\top}\bm{y}$ the
-least-squares estimate and
-$s^2=\lVert \bm{y}-\bm{X}\hat{\bm{\beta}}\rVert^2/(n-p)$ the unbiased error
-variance,
+Under the prior \eqref{eq:prior} the posterior is available in closed form: with $\hat{\bm{\beta}}=(\bm{X}^{\!\top}\bm{X})^{-1}\bm{X}^{\!\top}\bm{y}$ the least-squares estimate and $s^2=\lVert \bm{y}-\bm{X}\hat{\bm{\beta}}\rVert^2/(n-p)$ the unbiased error variance,
 \begin{align}
 	\sigma^2 \mid \bm{y}           & \sim \text{Inv-Gamma}\!\left(\tfrac{n-p}{2},\,
 	\tfrac{(n-p)s^2}{2}\right), \label{eq:post_sigma}                               \\
 	\bm{\beta}\mid \sigma^2,\bm{y} & \sim
 	\mathcal{N}\!\left(\hat{\bm{\beta}},\,
-	             \sigma^2\,(\bm{X}^{\!\top}\bm{X})^{-1}\right). \label{eq:post_beta}
+	             \sigma^2\,(\bm{X}^{\!\top}\bm{X})^{-1}\right), \label{eq:post_beta}
 \end{align}
-Marginalising \eqref{eq:post_beta} over $\sigma^2$ yields a multivariate
-Student-$t$ posterior for $\bm{\beta}$, centred at the least-squares estimate
-$\hat{\bm{\beta}}$ with scale matrix $s^2(\bm{X}^{\!\top}\bm{X})^{-1}$ and
-$n-p$ degrees of freedom. A direct consequence is that, under this reference
-prior, the posterior $95\%$ credible intervals are \emph{numerically
-identical} to the classical OLS confidence intervals, and any posterior
-probability (such as $\Pr(\beta_F>4\mid\bm{y})$) follows from the same
-Student-$t$. No simulation is therefore required: we read all point
-estimates, $95\%$ credible intervals and the credible band of the fitted
-curve directly off the fitted linear model (\texttt{lm} and \texttt{confint}
-in \textsf{R}).
+and marginalising \eqref{eq:post_beta} over $\sigma^2$ yields a multivariate Student-$t$ posterior for $\bm{\beta}$, centred at $\hat{\bm{\beta}}$ with scale matrix $s^2(\bm{X}^{\!\top}\bm{X})^{-1}$ and $n-p$ degrees of freedom. Consequently the posterior $95\%$ credible intervals are \emph{numerically identical} to the classical OLS confidence intervals, and any posterior probability (such as $\Pr(\beta_F>4\mid\bm{y})$) follows from the same Student-$t$: no simulation is required, and all summaries are read directly off the fitted linear model (\texttt{lm} and \texttt{confint} in \textsf{R}).
 
 \subsection{Results}
 
-\Cref{tab:loglog} (in the appendix) reports the posterior summaries. The model explains the
-data very well ($R^2=0.97$, residual standard deviation $s=0.32$ on the
-log scale). The posterior of the Froude exponent is sharply concentrated,
+\Cref{tab:loglog} (in the appendix) reports the posterior summaries. The model explains the data very well ($R^2=0.97$, residual standard deviation $s=0.32$ on the log scale) and the posterior of the Froude exponent is sharply concentrated,
 \[
 	\beta_F \approx 4.69, \qquad
 	95\%\ \text{CI} = [4.60,\ 4.78],
 \]
-confirming the expected power-law behaviour
-$\mathrm{resistance}\sim Fn^{\,4}$ and verifying the project requirement
-$\hat\beta_F\approx 4$. \Cref{fig:loglog} (left) shows the log--log
-scatter with the posterior-mean line and its $95\%$ credible band: the
-band is extremely tight, reflecting the $308$ observations and the strong
-signal of the Froude number. The posterior of $\beta_F$ is
-displayed in \cref{fig:loglog} (right); the whole posterior mass sits
-above the nominal value $4$ ($\Pr(\beta_F>4\mid\bm{y})\approx 1$), so the
-empirical exponent is best described as \emph{slightly steeper} than the
-textbook value of four.
+confirming the expected power-law behaviour $\mathrm{resistance}\sim Fn^{\,4}$ and verifying the project requirement $\hat\beta_F\approx 4$. \Cref{fig:loglog} shows the log--log scatter with the posterior-mean line and its very tight $95\%$ credible band (left), and the posterior of $\beta_F$ (right): the whole posterior mass sits above the nominal value $4$ ($\Pr(\beta_F>4\mid\bm{y})\approx 1$), so the empirical exponent is best described as \emph{slightly steeper} than the textbook value of four.
 
 \begin{figure}[H]
 	\centering
@@ -195,54 +157,50 @@ textbook value of four.
 \end{figure}
 
 \paragraph{Hull-geometry covariates.}
-Once the Froude number is in the model, none of the five hull form factors
-is individually credible: every $95\%$ interval comfortably contains zero
-(\cref{tab:loglog} and \cref{fig:forest}). The \texttt{prismatic}
-coefficient is especially poorly identified, with a posterior standard
-deviation of about $1.6$, because the form factors vary only across the
-$22$ hulls and are strongly collinear. This near-redundancy is precisely
-what the Bayesian model selection of the next section (BAS/BMA over the
-$2^5$ submodels) is meant to resolve, by quantifying which covariates
-carry signal through their posterior inclusion probabilities rather than
-through single-model $p$-values.
+Once the Froude number is in the model, none of the five hull form factors is individually credible: every $95\%$ interval comfortably contains zero (\cref{tab:loglog} and \cref{fig:forest} in the appendix). The form factors vary only across the $22$ hulls and are strongly collinear --- the \texttt{prismatic} coefficient, for instance, has a posterior standard deviation of about $1.6$. This near-redundancy is precisely what the BAS/BMA model selection of the next section resolves, through posterior inclusion probabilities rather than single-model $p$-values.
 
 \paragraph{Residual diagnostics.}
-Although the global fit is excellent, the residuals reveal two systematic
-defects that the simple log--log model cannot capture
-(\cref{fig:resid}). First, the residuals-versus-fitted panel shows a clear
-$\cup$-shaped pattern: a single constant exponent slightly over-predicts
-at intermediate speeds and under-predicts at the highest speeds,
-consistent with the local Froude exponent increasing from $\approx4.7$ in
-the full range to above $6$ in the high-speed subset. Second, the spread
-of the residuals is markedly larger at low fitted values, i.e.\ at low
-Froude numbers where the resistance is tiny and dominated by measurement
-noise --- a textbook signature of heteroscedasticity, also visible as the
-fanning of the data cloud on the left of \cref{fig:loglog}. The
-Normal Q--Q plot confirms heavier-than-Gaussian lower tails. These two
-findings (speed-dependent curvature and non-constant variance) directly
-motivate the heteroscedasticity-corrected nonlinear model developed in the
-subsequent section.
+Although the global fit is excellent, the residuals (\cref{fig:resid}, appendix) reveal two systematic defects. First, a $\cup$-shaped trend against the fitted values: a single constant exponent slightly over-predicts at intermediate speeds and under-predicts at the highest speeds. Second, the residual spread is markedly larger at low fitted values, i.e.\ at low Froude numbers where the resistance is tiny and dominated by measurement noise --- a textbook signature of heteroscedasticity, also visible as the fanning of the data cloud on the left of \cref{fig:loglog}. Both findings directly motivate the heteroscedasticity-corrected nonlinear model developed later.
 
-\begin{figure}[H]
-	\centering
-	\includegraphics[width=0.95\textwidth]{figures/residual_diag.pdf}
-	\caption{Residual diagnostics for the log--log model. Left: residuals
-		versus fitted values, with a LOWESS trend (blue) revealing
-		speed-dependent curvature and a variance that shrinks as the fitted
-		value grows. Right: Normal Q--Q plot, showing heavier-than-Gaussian
-		lower tails.}
-	\label{fig:resid}
-\end{figure}
+\subsection{Sensitivity check: independent informative priors}
+\label{sec:informative}
 
-\begin{figure}[H]
+The reference-prior analysis \emph{verifies} $\beta_F\approx4$ a posteriori; a complementary check \emph{encodes} the physics in the prior and asks how strongly the prior must insist on $4$ before it overrides the data. We replace \eqref{eq:prior} with independent proper priors,
+\begin{equation}
+	\beta_F \sim \mathcal{N}(4,\tau^2),
+	\qquad
+	\beta_j \sim \mathcal{N}(0,100^2)\ \ (j\neq F),
+	\qquad
+	\sigma^2 \sim \text{Inv-Gamma}(10^{-3},10^{-3}),
+	\label{eq:inf_prior}
+\end{equation}
+all components mutually independent. Since $\bm{\beta}$ and $\sigma^2$ are now independent a priori --- unlike in the conjugate Normal--Inverse-Gamma family, where $\operatorname{Var}(\bm{\beta}\mid\sigma^2)\propto\sigma^2$ --- the joint posterior is no longer available in closed form, but both full conditionals remain standard,
+\begin{align}
+	\bm{\beta}\mid\sigma^{2},\bm{y}  & \sim \mathcal{N}\!\big(\bm{V}(\bm{S}_0^{-1}\bm{m}_0+\bm{X}^{\!\top}\bm{y}/\sigma^{2}),\ \bm{V}\big),
+	\qquad \bm{V}=(\bm{S}_0^{-1}+\bm{X}^{\!\top}\bm{X}/\sigma^{2})^{-1}, \label{eq:fc_beta} \\
+	\sigma^{2}\mid\bm{\beta},\bm{y} & \sim \text{Inv-Gamma}\!\big(a_0+\tfrac{n}{2},\ b_0+\tfrac{1}{2}\lVert\bm{y}-\bm{X}\bm{\beta}\rVert^{2}\big), \label{eq:fc_sigma}
+\end{align}
+where $\bm{m}_0$ and $\bm{S}_0$ collect the prior means and variances of \eqref{eq:inf_prior}. We therefore sample the posterior with a \textbf{Gibbs sampler} ($10\,000$ iterations, $2\,000$ burn-in; the effective sample size for $\beta_F$ exceeds $4\,000$ in every run) and sweep the prior strength $\tau\in\{0.05,0.1,0.2,0.5\}$.
+
+\Cref{tab:informative} summarises the sweep; the posterior densities are overlaid in \cref{fig:informative} (appendix). A moderately informative prior ($\tau=0.5$) reproduces the reference result. Tightening the prior pulls the posterior mean towards $4$, but only the near-dogmatic $\tau=0.05$ (prior $95\%$ interval $\approx[3.9,\,4.1]$) drags it as far as $4.33$ --- and even then $\Pr(\beta_F>4\mid\bm{y})=1$. For any moderately diffuse physical prior ($\tau\ge0.1$) the likelihood dominates and the posterior mean stays in $4.56$--$4.68$. The conclusion that the empirical exponent is genuinely steeper than $Fn^{\,4}$ is therefore \textbf{robust to the prior}: it is a feature of the $n=308$ observations, not an artefact of the non-informative choice --- a transparent instance of prior--data conflict, in which an informative likelihood overwhelms all but an unreasonably confident prior.
+
+\begin{table}[H]
 	\centering
-	\includegraphics[width=0.7\textwidth]{figures/coef_forest.pdf}
-	\caption{Posterior means and $95\%$ credible intervals of the five
-		hull-geometry coefficients in the log--log model. Every interval
-		straddles zero (dashed line), indicating that no single form factor is
-		resolved once the Froude number is accounted for.}
-	\label{fig:forest}
-\end{figure}
+	\caption{Posterior of the Froude exponent $\beta_F$ under the independent informative priors \eqref{eq:inf_prior} of increasing strength, obtained by Gibbs sampling, compared with the closed-form reference-prior result.}
+	\label{tab:informative}
+	\begin{tabular}{l r r r r}
+		\toprule
+		\textbf{Prior on $\beta_F$}                            & \textbf{Mean} & \textbf{2.5\%} & \textbf{97.5\%} & $\Pr(\beta_F>4)$ \\
+		\midrule
+		$\mathcal{N}(4,0.05^2)$                                & $4.33$        & $4.25$         & $4.41$          & $1.00$           \\
+		$\mathcal{N}(4,0.10^2)$                                & $4.56$        & $4.47$         & $4.64$          & $1.00$           \\
+		$\mathcal{N}(4,0.20^2)$                                & $4.65$        & $4.56$         & $4.75$          & $1.00$           \\
+		$\mathcal{N}(4,0.50^2)$                                & $4.68$        & $4.59$         & $4.78$          & $1.00$           \\
+		\midrule
+		reference $\pi(\bm{\beta},\sigma^2)\propto\sigma^{-2}$ & $4.69$        & $4.60$         & $4.78$          & $1.00$           \\
+		\bottomrule
+	\end{tabular}
+\end{table}
 
 \newpage
 
@@ -292,13 +250,13 @@ instead of relying on one full regression model.
 	\label{tab:bma_pip}
 	\begin{tabular}{l r l}
 		\toprule
-		\textbf{Covariate} & \textbf{PIP} & \textbf{Interpretation} \\
+		\textbf{Covariate}     & \textbf{PIP} & \textbf{Interpretation} \\
 		\midrule
-		\texttt{beam\_draught} & $0.57$ & moderate, not decisive \\
-		\texttt{prismatic}     & $0.27$ & weak \\
-		\texttt{LCB}           & $0.21$ & weak \\
-		\texttt{L\_disp}       & $0.21$ & weak \\
-		\texttt{L\_beam}       & $0.19$ & weak \\
+		\texttt{beam\_draught} & $0.57$       & moderate, not decisive  \\
+		\texttt{prismatic}     & $0.27$       & weak                    \\
+		\texttt{LCB}           & $0.21$       & weak                    \\
+		\texttt{L\_disp}       & $0.21$       & weak                    \\
+		\texttt{L\_beam}       & $0.19$       & weak                    \\
 		\bottomrule
 	\end{tabular}
 \end{table}
@@ -312,7 +270,7 @@ instead of relying on one full regression model.
 
 \clearpage
 \appendix
-\section{Tables}
+\section{Tables and Figures}
 \label{app:tables}
 
 \begin{table}[H]
@@ -346,15 +304,49 @@ instead of relying on one full regression model.
 		\toprule
 		\textbf{Coefficient}              & \textbf{Mean} & \textbf{SD} & \textbf{2.5\%} & \textbf{97.5\%} & $\Pr(>0)$ \\
 		\midrule
-		Intercept $\beta_0$               & $7.183$       & $0.977$     & $5.245$        & $9.122$         & $1.00$    \\
-		$\log(\mathrm{Froude})$ $\beta_F$ & $4.690$       & $0.048$     & $4.595$        & $4.782$         & $1.00$    \\
-		\texttt{LCB}                      & $0.021$       & $0.012$     & $-0.003$       & $0.046$         & $0.96$    \\
-		\texttt{prismatic}                & $-0.616$      & $1.597$     & $-3.753$       & $2.495$         & $0.35$    \\
-		\texttt{L\_disp}                  & $0.464$       & $0.512$     & $-0.536$       & $1.466$         & $0.82$    \\
-		\texttt{beam\_draught}            & $-0.067$      & $0.200$     & $-0.455$       & $0.324$         & $0.37$    \\
-		\texttt{L\_beam}                  & $-0.464$      & $0.515$     & $-1.466$       & $0.542$         & $0.18$    \\
+		Intercept $\beta_0$               & $7.183$       & $0.983$     & $5.248$        & $9.119$         & $1.00$    \\
+		$\log(\mathrm{Froude})$ $\beta_F$ & $4.690$       & $0.048$     & $4.596$        & $4.785$         & $1.00$    \\
+		\texttt{LCB}                      & $0.022$       & $0.012$     & $-0.003$       & $0.046$         & $0.96$    \\
+		\texttt{prismatic}                & $-0.621$      & $1.601$     & $-3.771$       & $2.529$         & $0.35$    \\
+		\texttt{L\_disp}                  & $0.465$       & $0.513$     & $-0.546$       & $1.475$         & $0.82$    \\
+		\texttt{beam\_draught}            & $-0.066$      & $0.200$     & $-0.460$       & $0.327$         & $0.37$    \\
+		\texttt{L\_beam}                  & $-0.464$      & $0.515$     & $-1.477$       & $0.549$         & $0.18$    \\
 		\bottomrule
 	\end{tabular}
 \end{table}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.95\textwidth]{figures/residual_diag.pdf}
+	\caption{Residual diagnostics for the log--log model. Left: residuals
+		versus fitted values, with a LOWESS trend (blue) revealing
+		speed-dependent curvature and a variance that shrinks as the fitted
+		value grows. Right: Normal Q--Q plot, showing heavier-than-Gaussian
+		lower tails.}
+	\label{fig:resid}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.7\textwidth]{figures/coef_forest.pdf}
+	\caption{Posterior means and $95\%$ credible intervals of the five
+		hull-geometry coefficients in the log--log model. Every interval
+		straddles zero (dashed line), indicating that no single form factor is
+		resolved once the Froude number is accounted for.}
+	\label{fig:forest}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.72\textwidth]{figures/posterior_betaF_prior.pdf}
+	\caption{Posterior density of the Froude exponent $\beta_F$ under the
+		independent informative priors $\mathcal{N}(4,\tau^2)$ of increasing
+		strength (coloured, Gibbs samples) and under the reference prior
+		(grey, closed-form Student-$t$). The dashed blue line marks the
+		physical value $\beta_F=4$. Tightening the prior toward $4$ shifts the
+		posterior only modestly; the data keep it well above $4$ unless the
+		prior is unreasonably confident.}
+	\label{fig:informative}
+\end{figure}
 
 \end{document}

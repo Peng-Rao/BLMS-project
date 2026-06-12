@@ -135,6 +135,80 @@ par(op)
 
 The residuals show a $\cup$-shaped curvature (the local Froude exponent grows with speed) and a variance that shrinks as the fitted value grows (heteroscedasticity). Both defects motivate the heteroscedasticity-corrected nonlinear model of parts 3-4.
 
+### Sensitivity check: independent informative priors (Gibbs sampler)
+
+The reference prior above is deliberately *objective*: the data alone estimate $\beta_F$, and we then **verify** the result against the physical value 4. A complementary check *encodes* the physics in the prior and asks how strongly it must insist on 4 before it overrides the data. We replace the reference prior with **independent proper priors** $$\beta_F\sim\mathcal N(4,\tau^2),\qquad \beta_j\sim\mathcal N(0,100^2)\ \ (j\neq F),\qquad \sigma^2\sim\text{Inv-Gamma}(10^{-3},10^{-3}),$$ all components mutually independent. Because $\beta$ and $\sigma^2$ are now independent a priori (unlike the conjugate Normal-Inverse-Gamma family, where $\mathrm{Var}(\beta\mid\sigma^2)\propto\sigma^2$), the joint posterior has no closed form -- but both full conditionals are standard, so we sample it with a **Gibbs sampler** and sweep the prior strength $\tau\in\{0.05,0.1,0.2,0.5\}$.
+
+```{r informative-prior-gibbs}
+## Full conditionals of the independent (semi-conjugate) prior:
+##   beta | sigma^2, y    ~ N( V (S0^{-1} m0 + X'y / sigma^2), V ),
+##                          with V = (S0^{-1} + X'X / sigma^2)^{-1}
+##   sigma^2 | beta, y    ~ Inv-Gamma( a0 + n/2, b0 + ||y - X beta||^2 / 2 )
+set.seed(2026)
+X <- model.matrix(fit); y <- yh$log_res
+n <- nrow(X); p <- ncol(X)
+fr  <- which(colnames(X) == "log_Fr")
+XtX <- crossprod(X); Xty <- crossprod(X, y)
+
+gibbs_betaF <- function(tau, n_iter = 10000, burn = 2000) {
+  m0  <- rep(0, p); m0[fr] <- 4            # physics prior centred at 4 on beta_F only
+  psd <- rep(100, p); psd[fr] <- tau       # vague-but-proper N(0, 100^2) elsewhere
+  S0_inv <- diag(1 / psd^2)
+  a0 <- 1e-3; b0 <- 1e-3
+  beta <- coef(fit); sig2 <- summary(fit)$sigma^2
+  keep <- numeric(n_iter - burn)
+  for (it in seq_len(n_iter)) {
+    V    <- chol2inv(chol(S0_inv + XtX / sig2))
+    mu   <- V %*% (S0_inv %*% m0 + Xty / sig2)
+    beta <- as.vector(mu + t(chol(V)) %*% rnorm(p))
+    sig2 <- 1 / rgamma(1, a0 + n / 2, b0 + sum((y - X %*% beta)^2) / 2)
+    if (it > burn) keep[it - burn] <- beta[fr]
+  }
+  keep
+}
+
+taus  <- c(0.05, 0.1, 0.2, 0.5)
+draws <- lapply(taus, gibbs_betaF)
+
+tab <- t(sapply(draws, function(d)
+  c(mean = mean(d), q2.5 = unname(quantile(d, .025)),
+    q97.5 = unname(quantile(d, .975)), P_gt4 = mean(d > 4))))
+rownames(tab) <- sprintf("tau = %.2f", taus)
+## reference row: closed-form Student-t posterior (= OLS confint)
+ref <- c(bF, ci[1], ci[2], 1 - pt((4 - bF) / se, df))
+round(rbind(tab, reference = ref), 3)
+
+## crude ACF-based effective sample size, as an MCMC sanity check
+ess <- sapply(draws, function(d) {
+  ac <- acf(d, lag.max = 50, plot = FALSE)$acf[-1]
+  length(d) / (1 + 2 * sum(ac[ac > 0]))
+})
+cat("approx ESS for beta_F:", round(ess), "\n")
+```
+
+```{r informative-prior-plot, fig.width=7, fig.height=4.4}
+draw_overlay <- function() {
+  cols <- c("#d7301f", "#fc8d59", "#f1a340", "#2b8cbe")
+  xb <- seq(3.9, 4.95, length.out = 400)
+  plot(xb, dt((xb - bF) / se, df) / se, type = "l", lwd = 2.6, col = "grey30",
+       main = expression("Posterior of " * beta[F] * " vs prior strength"),
+       xlab = expression(beta[F]), ylab = "posterior density",
+       ylim = c(0, max(sapply(draws, function(d) max(density(d)$y)),
+                       dt(0, df) / se)))
+  for (i in seq_along(taus)) lines(density(draws[[i]]), col = cols[i], lwd = 2)
+  abline(v = 4, col = "navy", lty = 2, lwd = 2)
+  legend("topleft", bty = "n", lwd = 2, col = c("grey30", cols),
+         legend = c(expression("reference " * pi(sigma^2) %prop% sigma^-2),
+                    sprintf("N(4, %.2f²)", taus)))
+}
+draw_overlay()
+## keep the figure used by the report in sync with the notebook
+pdf("figures/posterior_betaF_prior.pdf", width = 7, height = 4.4)
+draw_overlay(); invisible(dev.off())
+```
+
+With $\tau=0.5$ the informative analysis reproduces the reference result ($\beta_F\approx4.69$). Tightening the prior pulls the posterior mean toward 4, but only the near-dogmatic $\tau=0.05$ (prior 95% interval roughly $[3.9,4.1]$) drags it as far as $4.33$ -- and even then $P(\beta_F>4\mid y)=1$. For any moderately diffuse physical prior ($\tau\ge0.1$) the likelihood dominates and the posterior mean stays in $4.56$--$4.68$. The conclusion that the empirical exponent is genuinely steeper than $Fn^4$ is therefore **robust to the prior**: it is a feature of the $n=308$ observations, not an artifact of the non-informative choice -- a clean illustration of prior--data conflict, where an informative likelihood overwhelms all but an unreasonably confident prior.
+
 ## 2. BAS / BMA model selection over hull covariates
 
 The first model already shows the main physical effect: `log_Fr` is overwhelmingly important. The second question is more subtle: **after Froude is already in the model**, do any of the five hull-geometry variables still add useful information?
