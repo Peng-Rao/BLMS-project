@@ -431,3 +431,300 @@ The sensitivity analysis is important because the baseline PIP values are modest
 The prior sensitivity analysis gives a more cautious interpretation. When the BAS/BMA enumeration is repeated using alternative priors, such as Zellner’s `g-prior` and the `JZS` prior, no hull covariate reaches PIP ≥ 0.50 under all prior choices. Therefore, the contribution of the hull-geometry variables is not fully robust to the prior specification.
 
 Overall, the safest conclusion is that **Froude explains the main resistance scaling**, while the hull-geometry effects are weak to moderate and prior-sensitive. Among them, **B/draught** (`beam_draught`) is the most defensible reduced candidate to carry forward into the nonlinear heteroscedasticity-corrected model of part 3, but it should also be compared with a no-hull model as a sensitivity check.
+
+## 3. Heteroscedasticity-corrected nonlinear model (JAGS)
+
+The log-log model of part 1 assumes *multiplicative* lognormal errors: back on the original scale it implies a noise standard deviation proportional to the resistance itself, which the residual diagnostics contradicted. Part 3 keeps the same power-law mean but moves the noise to the original scale, **additive and homoscedastic**:
+
+$$\mathrm{resistance}_i \;=\; \mu_i + \varepsilon_i, \qquad \varepsilon_i \sim \mathcal N(0, \sigma^2)
+\qquad\Longleftrightarrow\qquad \mathrm{resistance}_i \;\sim\; \mathcal N(\mu_i,\ \sigma^2),$$
+
+with mean $\mu_i = k\,\mathrm{Froude}_i^{\gamma_F}\,\exp\{\beta_B\,\mathrm{bd}_i\}$. For the sampler we rewrite this product of powers as the exponential of a linear expression, using only the identities $a = e^{\log a}$ and $a^b = e^{b \log a}$ (valid because $k > 0$ and $\mathrm{Froude}_i > 0$):
+
+$$\mu_i
+= k \cdot \mathrm{Froude}_i^{\gamma_F} \cdot e^{\beta_B\,\mathrm{bd}_i}
+= e^{\log k} \cdot e^{\gamma_F \log \mathrm{Froude}_i} \cdot e^{\beta_B\,\mathrm{bd}_i}
+= \exp\big\{\log k + \gamma_F \log \mathrm{Froude}_i + \beta_B\,\mathrm{bd}_i\big\}.$$
+
+Next we centre the covariates: writing $\log \mathrm{Froude}_i = m_F + \tilde x_{F,i}$ and $\mathrm{bd}_i = m_B + \tilde x_{B,i}$ (centring constant plus centred variable) and collecting all constants into a single intercept,
+
+$$\mu_i
+= \exp\big\{\underbrace{\log k + \gamma_F m_F + \beta_B m_B}_{\textstyle b_0}
+  \;+\; \gamma_F\,\tilde x_{F,i} \;+\; \beta_B\,\tilde x_{B,i}\big\}
+= \exp\big\{b_0 + \gamma_F\,\tilde x_{F,i} + \beta_B\,\tilde x_{B,i}\big\}.$$
+
+The slopes $\gamma_F$ and $\beta_B$ are untouched by this rewriting; only the intercept is relabelled. After sampling we recover the physical constant by inverting the definition of $b_0$:
+
+$$k \;=\; \exp\big\{b_0 - \gamma_F m_F - \beta_B m_B\big\} \quad \text{(applied to every posterior draw).}$$
+
+Following the BAS result of part 2 we keep only `beam_draught` (bd) and fit two models: **M0** (Froude only) and **M1** (Froude + beam_draught). Priors: $b_0\sim\mathcal N(0,10^2)$, $\gamma_F\sim\mathcal N(4,2^2)$ (weakly informative, centred at the physical value), $\beta_B\sim\mathcal N(0,2^2)$, $1/\sigma^2\sim\mathrm{Gamma}(0.01,0.01)$. As a sensitivity check the $\gamma_F$ prior is also replaced by a vague $\mathcal N(0,10^2)$ and an informative $\mathcal N(4,0.5^2)$.
+
+The parameters enter the mean through an exponential, so the likelihood is not conjugate with any standard prior and the posterior has no closed form: we sample it by MCMC with **JAGS** (which uses slice/Metropolis updates within a Gibbs cycle, plus an exact conjugate draw for the precision).
+
+One computational detail concerns the choice of the centring constants $m_F, m_B$. With *ordinary* means, the chains for $b_0$ and $\gamma_F$ mix very poorly: under additive errors the likelihood is dominated by the large-resistance (high-Froude) rows, so changing the slope $\gamma_F$ can be almost perfectly compensated by changing the intercept, and the posterior of $(b_0,\gamma_F)$ becomes a long thin ridge that a one-parameter-at-a-time sampler crosses very slowly. We therefore centre at a *weighted* mean with weights proportional to $y_i^2$ — i.e. at the speeds where the data actually constrain the curve — which makes $b_0$ and $\gamma_F$ nearly uncorrelated and lets the sampler mix freely. This is purely a reparametrization for the benefit of the sampler (the slopes are untouched and the intercept is back-transformed to $k$ afterwards, so the reported inference is unaffected); it is justified **empirically** below, where the identical model is re-run with ordinary centring and the two runs are compared chain by chain.
+
+```{r task3-prep}
+y_res <- yh$resistance
+n_obs <- length(y_res)
+
+## centre covariates at a y^2-weighted mean: removes the strong posterior
+## correlation between b0 and gamma_F that ruins mixing with plain centring
+w_info <- y_res^2 / sum(y_res^2)
+mF <- sum(w_info * log(yh$Froude))
+mB <- sum(w_info * yh$beam_draught)
+xF_c <- log(yh$Froude)  - mF
+xB_c <- yh$beam_draught - mB
+
+X0 <- cbind(intercept = 1, log_Fr = xF_c)                    # M0: Froude only
+X1 <- cbind(X0, beam_draught = xB_c)                         # M1: + beam_draught
+```
+
+```{r task3-jags-model, message=FALSE, warning=FALSE}
+if (!requireNamespace("rjags", quietly = TRUE)) {
+  stop("Package 'rjags' (and the JAGS engine) is required. Install JAGS from ",
+       "https://mcmc-jags.sourceforge.io and then run install.packages('rjags').")
+}
+library(rjags)
+library(coda)
+
+## One generic model string serves M0/M1 and every prior: the design matrix X
+## and the prior mean/precision of theta are passed as data.
+jags_model_string <- "
+model {
+  for (i in 1:n) {
+    log(mu[i]) <- inprod(X[i, ], theta[])
+    y[i] ~ dnorm(mu[i], tau)
+  }
+  for (j in 1:p) {
+    theta[j] ~ dnorm(prior_mean[j], prior_prec[j])
+  }
+  tau    ~ dgamma(0.01, 0.01)
+  sigma2 <- 1 / tau
+  sigma  <- sqrt(sigma2)
+}
+"
+
+## Fit the model by MCMC and return a coda::mcmc.list.
+## Chains are overdispersed in gamma_F and individually seeded => reproducible.
+run_jags <- function(X, prior_mean, prior_sd, n_chains = 4,
+                     n_adapt = 2500, n_burn = 2500, n_iter = 20000,
+                     gamma_inits = c(3, 6, 5, 4), seed0 = 2026) {
+  dat <- list(y = y_res, X = X, n = nrow(X), p = ncol(X),
+              prior_mean = prior_mean, prior_prec = 1 / prior_sd^2)
+  theta_start <- coef(lm(log(y_res) ~ X - 1))   # crude start from the log fit
+  inits <- lapply(seq_len(n_chains), function(ch) {
+    th <- theta_start
+    th[2] <- gamma_inits[ch]
+    list(theta = unname(th), tau = 1,
+         .RNG.name = "base::Mersenne-Twister", .RNG.seed = seed0 + ch)
+  })
+  jm <- jags.model(textConnection(jags_model_string), data = dat, inits = inits,
+                   n.chains = n_chains, n.adapt = n_adapt, quiet = TRUE)
+  update(jm, n_burn)
+  coda.samples(jm, c("theta", "sigma", "sigma2"), n.iter = n_iter)
+}
+```
+
+```{r task3-fit, cache=TRUE}
+## main prior, 4 chains each
+jags_M0 <- run_jags(X0, prior_mean = c(0, 4),    prior_sd = c(10, 2))
+jags_M1 <- run_jags(X1, prior_mean = c(0, 4, 0), prior_sd = c(10, 2, 2))
+
+## gamma_F prior sensitivity (M1, 2 chains each)
+jags_M1_vague  <- run_jags(X1, prior_mean = c(0, 0, 0), prior_sd = c(10, 10, 2),
+                           n_chains = 2)
+jags_M1_inform <- run_jags(X1, prior_mean = c(0, 4, 0), prior_sd = c(10, 0.5, 2),
+                           n_chains = 2)
+```
+
+### Convergence diagnostics
+
+MCMC draws are only valid posterior samples after the chains have converged to the target distribution, so before any inference we check four things. (1) **Traceplots**: each parameter's chains should look like stationary noise around a fixed level, with the 4 independently started chains overlapping — a trending or wandering trace means the chain is still moving toward the posterior. (2) **Gelman–Rubin $\hat R$**: the chains were started from deliberately different values of $\gamma_F$ (3, 6, 5, 4); $\hat R$ compares the variance *between* chains to the variance *within* chains, and is $\approx 1$ only when all chains explore the same distribution — we require $\hat R < 1.01$. (3) **Effective sample size (ESS)**: consecutive MCMC draws are autocorrelated, so 80,000 raw draws carry less information than 80,000 independent ones; ESS is the equivalent number of independent draws, and we want it in the thousands so that posterior quantiles are stable. (4) **Autocorrelation plots**: the autocorrelation of the chain should decay to zero within a few lags; slow decay explains a low ESS.
+
+```{r task3-diagnostics, fig.width=10, fig.height=6}
+par_labels <- c("theta[1]" = "b0", "theta[2]" = "gamma_F",
+                "theta[3]" = "beta_B", "sigma" = "sigma")
+
+diag_table <- function(fit, run) {
+  keep <- intersect(varnames(fit), names(par_labels))
+  rhat <- gelman.diag(fit[, keep], multivariate = FALSE)$psrf[, 1]
+  ess  <- effectiveSize(fit[, keep])
+  data.frame(run = run, parameter = unname(par_labels[keep]),
+             Rhat = round(rhat, 4), ESS = round(ess), row.names = NULL)
+}
+
+rbind(diag_table(jags_M0, "M0 (main prior)"),
+      diag_table(jags_M1, "M1 (main prior)"),
+      diag_table(jags_M1_vague,  "M1 (vague gamma_F prior)"),
+      diag_table(jags_M1_inform, "M1 (informative gamma_F prior)"))
+
+## traceplots + autocorrelation for the headline run (M1, main prior)
+op <- par(mfrow = c(2, 2), mar = c(4, 4, 2, 1))
+traceplot(jags_M1[, c("theta[1]", "theta[2]", "theta[3]", "sigma")])
+par(op)
+
+op <- par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
+acf(as.matrix(jags_M1[, "theta[2]"]), main = "ACF gamma_F (pooled chains)")
+acf(as.matrix(jags_M1[, "sigma"]),    main = "ACF sigma (pooled chains)")
+par(op)
+```
+
+All $\hat R$ are $\approx 1$ and the effective sample sizes are in the tens of thousands, so the chains can be pooled for inference.
+
+### Justifying the weighted centring: the same model with ordinary centring
+
+To show that the weighted centring is doing real work (and nothing else), we re-run **the identical model** — same data, same priors, same four chains of the same length — changing only the centring constants to the ordinary means. Everything that differs between the two runs is therefore attributable to the parametrization alone.
+
+```{r task3-centring-experiment, cache=TRUE}
+xF_plain <- log(yh$Froude)  - mean(log(yh$Froude))
+xB_plain <- yh$beam_draught - mean(yh$beam_draught)
+X1_plain <- cbind(intercept = 1, log_Fr = xF_plain, beam_draught = xB_plain)
+
+jags_M1_plain <- run_jags(X1_plain, prior_mean = c(0, 4, 0), prior_sd = c(10, 2, 2))
+```
+
+```{r task3-centring-compare, fig.width=10, fig.height=7}
+keep3 <- c("theta[1]", "theta[2]", "theta[3]")
+n_tot <- niter(jags_M1) * nchain(jags_M1)     # total kept draws (same in both runs)
+
+mix_stats <- function(fit) {
+  rhat <- gelman.diag(fit[, keep3], multivariate = FALSE)$psrf[, 1]
+  ess  <- effectiveSize(fit[, keep3])
+  cbind(Rhat = round(rhat, 3), ESS = round(ess),
+        `draws needed for ESS 1000` = round(1000 * n_tot / ess))
+}
+
+cat("ordinary centring (", n_tot, "kept draws ):\n")
+mix_stats(jags_M1_plain)
+cat("\nweighted centring (same", n_tot, "kept draws ):\n")
+mix_stats(jags_M1)
+
+## the cause: posterior correlation between intercept and slope
+cor_plain <- cor(as.matrix(jags_M1_plain)[, "theta[1]"],
+                 as.matrix(jags_M1_plain)[, "theta[2]"])
+cor_wt    <- cor(as.matrix(jags_M1)[, "theta[1]"],
+                 as.matrix(jags_M1)[, "theta[2]"])
+cat(sprintf("\ncor(b0, gamma_F): ordinary centring %.4f  vs  weighted centring %.4f\n",
+            cor_plain, cor_wt))
+
+## same posterior, different Monte Carlo efficiency
+round(rbind(`gamma_F, ordinary centring` = summary(jags_M1_plain)$statistics["theta[2]", 1:2],
+            `gamma_F, weighted centring` = summary(jags_M1)$statistics["theta[2]", 1:2]), 4)
+
+## visual: gamma_F trace and autocorrelation under the two parametrizations
+op <- par(mfrow = c(2, 2), mar = c(4, 4, 2.5, 1))
+traceplot(jags_M1_plain[, "theta[2]"], main = "gamma_F trace - ordinary centring")
+traceplot(jags_M1[, "theta[2]"],       main = "gamma_F trace - weighted centring")
+acf(as.matrix(jags_M1_plain[[1]][, "theta[2]"]), lag.max = 200,
+    main = "ACF gamma_F - ordinary centring (chain 1)")
+acf(as.matrix(jags_M1[[1]][, "theta[2]"]), lag.max = 200,
+    main = "ACF gamma_F - weighted centring (chain 1)")
+par(op)
+```
+
+The comparison makes the case by itself: with ordinary centring the intercept and the Froude exponent are almost perfectly negatively correlated in the posterior ($\mathrm{cor}(b_0,\gamma_F) \approx -0.99$ vs $\approx 0$ after weighting), the autocorrelation of the $\gamma_F$ chain persists over hundreds of lags, and the effective sample size collapses: the same 80,000 kept draws are worth ~450 independent samples under ordinary centring versus ~50,000 under weighted centring — a factor of about 110. Equivalently, reaching ESS $= 1{,}000$ (a usual minimum for stable credible-interval endpoints) takes roughly $180{,}000$ draws with ordinary centring but fewer than $2{,}000$ with the weighted version. Both runs nonetheless agree on the posterior itself ($\gamma_F$ mean 7.187 vs 7.183, well within Monte Carlo error), confirming that the centring choice affects only the sampler's efficiency, not the inference.
+
+### Posterior analysis
+
+```{r task3-posterior}
+## back-transform the centred intercept to the physical k for every draw
+post_summary <- function(fit, hull = TRUE) {
+  d <- as.matrix(fit)
+  k <- exp(d[, "theta[1]"] - d[, "theta[2]"] * mF -
+             (if (hull) d[, "theta[3]"] * mB else 0))
+  out <- cbind(k = k, gamma_F = d[, "theta[2]"],
+               beta_B = if (hull) d[, "theta[3]"] else NULL,
+               sigma = d[, "sigma"])
+  t(apply(out, 2, function(z)
+    c(mean = mean(z), sd = sd(z),
+      `2.5%` = unname(quantile(z, .025)), `50%` = unname(quantile(z, .5)),
+      `97.5%` = unname(quantile(z, .975)))))
+}
+
+cat("M0 (Froude only):\n")
+round(post_summary(jags_M0, hull = FALSE), 4)
+cat("\nM1 (Froude + beam_draught):\n")
+round(post_summary(jags_M1), 4)
+
+gF_draws <- as.matrix(jags_M1)[, "theta[2]"]
+bB_draws <- as.matrix(jags_M1)[, "theta[3]"]
+cat(sprintf("\nP(gamma_F > 4 | y) = %.4f   P(beta_B < 0 | y) = %.4f\n",
+            mean(gF_draws > 4), mean(bB_draws < 0)))
+cat("log-log (part 1) for comparison: beta_F =", round(bF, 3),
+    ", 95% CI [", round(ci[1], 3), ",", round(ci[2], 3), "]\n")
+cat("log-log beam_draught 95% CI: [",
+    paste(round(confint(fit)["beam_draught", ], 4), collapse = ", "), "]\n")
+```
+
+```{r task3-gamma-plot, fig.width=10, fig.height=4.6}
+op <- par(mfrow = c(1, 2), mar = c(4.2, 4.2, 2, 1))
+
+## gamma_F (additive errors) vs beta_F (log-log, closed-form Student-t)
+dg <- density(gF_draws)
+plot(dg, col = "firebrick", lwd = 2.4, xlim = c(3.9, max(dg$x)),
+     main = "Froude exponent under the two error models",
+     xlab = expression(gamma[F]), ylab = "posterior density")
+curve(dt((x - bF) / se, df) / se, from = 4.3, to = 5.1,
+      n = 400, col = "navy", lwd = 2.4, add = TRUE)
+abline(v = 4, lty = 2)
+legend("top", bty = "n", lwd = c(2.4, 2.4, 1), col = c("firebrick", "navy", "black"),
+       lty = c(1, 1, 2),
+       legend = c(expression(gamma[F]*" (additive errors, M1)"),
+                  expression(beta[F]*" (log-log, part 1)"),
+                  expression(gamma[F] == 4)))
+
+## beam_draught effect: credible once the error model is corrected
+plot(density(bB_draws), col = "firebrick", lwd = 2.4,
+     main = expression("Posterior of "*beta[B]*" (beam-draught)"),
+     xlab = expression(beta[B]), ylab = "posterior density")
+abline(v = 0, lty = 2)
+abline(v = quantile(bB_draws, c(.025, .975)), col = "firebrick", lty = 3)
+par(op)
+```
+
+```{r task3-sensitivity}
+## gamma_F posterior under the three priors (M1)
+sens <- rbind(
+  "N(4, 2^2)   (main)"        = post_summary(jags_M1)["gamma_F", ],
+  "N(0, 10^2)  (vague)"       = post_summary(jags_M1_vague)["gamma_F", ],
+  "N(4, 0.5^2) (informative)" = post_summary(jags_M1_inform)["gamma_F", ])
+round(sens, 4)
+```
+
+**Comparison with the log-log regression.** The heteroscedasticity correction changes the inference dramatically: the Froude exponent jumps from $\beta_F \approx 4.69$ (log-log) to $\gamma_F \approx 7.2$, and the two posteriors do not even overlap. The reason is the implicit weighting: the log-scale fit gives every observation equal *relative* weight, so it is dominated by the many small low-Froude resistances, while the additive-error fit is dominated by the large high-Froude resistances — and part 1's $\cup$-shaped residuals showed precisely that the local exponent grows with speed. Neither number is "the" exponent of a global power law; the data do not follow a single power law over the whole Froude range. Conversely, the hull covariate becomes *more* credible, not less: `beam_draught` now has a clearly negative coefficient with a 95% credible interval far from zero, whereas in the log-log model it was indistinguishable from zero. The $\gamma_F$ inference is insensitive to the prior (the vague and main priors agree to two decimals; even the informative $\mathcal N(4,0.5^2)$ prior moves the posterior mean only marginally), so the shift relative to part 1 is a property of the error model, not of the prior.
+
+### Model comparison: does beam_draught earn its place?
+
+WAIC and DIC computed from the MCMC draws. (No information-criterion comparison against the log-log model is reported: its likelihood is for $\log y$, a different response scale, and would need a Jacobian correction — the two error models are compared on the predictive scale in part 4.)
+
+```{r task3-waic}
+ic_from_fit <- function(fit, X, n_draws = 4000, seed = 2026) {
+  d <- as.matrix(fit)
+  set.seed(seed)
+  d <- d[sample(nrow(d), n_draws), ]
+  th <- d[, paste0("theta[", seq_len(ncol(X)), "]"), drop = FALSE]
+  s2 <- d[, "sigma2"]
+  mu <- exp(th %*% t(X))                                    # n_draws x n
+  ll <- dnorm(matrix(y_res, n_draws, n_obs, byrow = TRUE),
+              mu, sqrt(s2), log = TRUE)                     # sd recycles by draw
+
+  ## WAIC: lppd via log-sum-exp, p_waic = sum of pointwise posterior variances
+  mx     <- apply(ll, 2, max)
+  lppd   <- sum(mx + log(colMeans(exp(sweep(ll, 2, mx)))))
+  p_waic <- sum(apply(ll, 2, var))
+
+  ## DIC: deviance at the posterior mean vs posterior mean of the deviance
+  mu_hat <- exp(X %*% colMeans(th))
+  d_hat  <- -2 * sum(dnorm(y_res, mu_hat, sqrt(mean(s2)), log = TRUE))
+  d_bar  <- mean(-2 * rowSums(ll))
+
+  c(WAIC = -2 * (lppd - p_waic), p_WAIC = p_waic,
+    DIC = d_hat + 2 * (d_bar - d_hat), p_DIC = d_bar - d_hat)
+}
+
+ic <- rbind("M0: Froude only"           = ic_from_fit(jags_M0, X0),
+            "M1: Froude + beam_draught" = ic_from_fit(jags_M1, X1))
+round(cbind(ic, dWAIC = ic[, "WAIC"] - min(ic[, "WAIC"])), 1)
+```
+
+**Conclusion of part 3.** Under the corrected (additive) error model the hull covariate selected in part 2 is decisively supported: M1 beats M0 by a clear WAIC/DIC margin, and $\beta_B$ is credibly negative — a wider beam relative to draught reduces residuary resistance per unit displacement at fixed Froude number. This sharpens part 2's verdict: the weak BAS evidence for `beam_draught` reflected the misspecified homoscedastic log-scale likelihood, not an absence of signal. The Froude-exponent inference, by contrast, is strongly error-model-dependent ($4.69$ vs $\approx 7.2$), which is exactly the heteroscedasticity impact part 3 asks us to discuss, and it motivates the posterior-predictive comparison of part 4.
