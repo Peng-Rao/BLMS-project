@@ -246,7 +246,62 @@ subsequent section.
 
 \newpage
 
-\section{BAS}
+
+\section{BAS/BMA model selection over hull covariates}
+
+The first part establishes the dominant physical relationship: after taking
+logs, the resistance is essentially a power law of the Froude number. The
+second question is conditional on that fact: once $\log(Fn)$ is already in the
+model, which hull-geometry variables still carry independent signal?
+
+We address this with Bayesian model averaging using \texttt{bas.lm}. The model
+space contains the five optional geometry covariates
+\texttt{LCB}, \texttt{prismatic}, \texttt{L\_disp}, \texttt{beam\_draught} and
+\texttt{L\_beam}. Therefore the number of candidate submodels is only
+$2^5=32$. The term $\log(Fn)$ is forced into every model, because the project is
+not asking whether speed matters; it is asking which hull covariates matter
+\emph{after} speed has been accounted for. In the R code this is enforced with
+\texttt{include.always = \textasciitilde{} log\_Fr}, while the five hull terms
+are left optional.
+
+The main diagnostic is the posterior inclusion probability (PIP). A PIP is the
+posterior probability that a covariate is included in the true regression model,
+after averaging over all 32 submodels. Hence a large PIP indicates that the
+variable repeatedly appears in high-posterior-probability models, while a small
+PIP means that the data do not strongly need that variable once the other terms
+are considered.
+
+Using the BIC approximation to the marginal likelihood, the highest posterior
+model is the one containing $\log(Fn)$ and \texttt{beam\_draught}, but its
+posterior probability is not dominant. The approximate PIPs are reported in
+\cref{tab:bma_pip}. The largest value is for \texttt{beam\_draught}, but even
+there the evidence is only moderate. The remaining covariates have weak
+inclusion probabilities. Thus the BAS/BMA conclusion is deliberately cautious:
+the Froude power law is the stable signal; the hull-form variables may have
+secondary effects, but no individual hull covariate is strongly identified by
+the homoscedastic log--log regression.
+
+This agrees with the full-model coefficient intervals in \cref{tab:loglog},
+where all five hull coefficients have 95\% credible intervals crossing zero.
+BAS/BMA strengthens that interpretation because it checks the whole model space
+instead of relying on one full regression model.
+
+\begin{table}[H]
+	\centering
+	\caption{Approximate posterior inclusion probabilities for the five optional hull-geometry covariates when $\log(Fn)$ is forced into every model. Values are based on enumeration of the $2^5=32$ submodels using a BIC marginal-likelihood approximation, matching the \texttt{prior = "BIC"} specification in \texttt{bas.lm}.}
+	\label{tab:bma_pip}
+	\begin{tabular}{l r l}
+		\toprule
+		\textbf{Covariate} & \textbf{PIP} & \textbf{Interpretation} \\
+		\midrule
+		\texttt{beam\_draught} & $0.57$ & moderate, not decisive \\
+		\texttt{prismatic}     & $0.27$ & weak \\
+		\texttt{LCB}           & $0.21$ & weak \\
+		\texttt{L\_disp}       & $0.21$ & weak \\
+		\texttt{L\_beam}       & $0.19$ & weak \\
+		\bottomrule
+	\end{tabular}
+\end{table}
 
 \newpage
 

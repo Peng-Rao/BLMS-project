@@ -134,3 +134,191 @@ par(op)
 ```
 
 The residuals show a $\cup$-shaped curvature (the local Froude exponent grows with speed) and a variance that shrinks as the fitted value grows (heteroscedasticity). Both defects motivate the heteroscedasticity-corrected nonlinear model of parts 3-4.
+
+## 2. BAS / BMA model selection over hull covariates
+
+The first model already shows the main physical effect: `log_Fr` is overwhelmingly important. The second question is more subtle: **after Froude is already in the model**, do any of the five hull-geometry variables still add useful information?
+
+We answer this with **Bayesian Adaptive Sampling / Bayesian Model Averaging**. In this project the model space is small: there are five optional hull covariates, so there are only $2^5 = 32$ possible submodels. We keep `log_Fr` in every model and let `bas.lm` enumerate every combination of
+
+`LCB`, `prismatic`, `L_disp`, `beam_draught`, and `L_beam`.
+
+The key output is the **posterior inclusion probability** (PIP): the posterior probability that a variable belongs in the regression model. A PIP near 1 means strong evidence that the variable carries signal; a PIP near 0.5 is weak/ambiguous; a small PIP means little evidence once the other variables and Froude are considered.
+
+```{r bas-bma, message=FALSE, warning=FALSE}
+if (!requireNamespace("BAS", quietly = TRUE)) {
+  stop("Package 'BAS' is required. Install it with install.packages('BAS') before knitting.")
+}
+library(BAS)
+
+# Optional hull-geometry covariates. These are the five variables requested in the project.
+hull_covariates <- c("LCB", "prismatic", "L_disp", "beam_draught", "L_beam")
+
+# Sanity check: fail loudly if a requested covariate is missing or misspelled.
+stopifnot(all(c("log_res", "log_Fr", hull_covariates) %in% names(yh)))
+
+# In the model-selection step, log_Fr must be present in every model.
+# The five hull covariates are optional, so bas.lm enumerates 2^5 = 32 submodels.
+bas_fit <- bas.lm(
+  log_res ~ log_Fr + LCB + prismatic + L_disp + beam_draught + L_beam,
+  data = yh,
+  prior = "BIC",
+  modelprior = uniform(),
+  method = "deterministic",
+  n.models = 2^length(hull_covariates),
+  include.always = ~ log_Fr,
+  force.heredity = FALSE
+)
+
+# Check that the model space has really been fully enumerated.
+n_models_expected <- 2^length(hull_covariates)
+n_models_observed <- length(bas_fit$postprobs)
+cat("Number of models enumerated:", n_models_observed, "\n")
+stopifnot(n_models_observed == n_models_expected)
+
+# BAS may store the selected variables either as a list of indices or as a matrix,
+# depending on the package version. The following code converts both cases into
+# a stable 0/1 model-inclusion matrix.
+term_names <- c("(Intercept)", "log_Fr", hull_covariates)
+
+make_which_matrix <- function(which_obj, term_names) {
+  if (is.list(which_obj) && !is.matrix(which_obj)) {
+    out <- t(sapply(which_obj, function(idx) {
+      # BAS indexes terms from 0: 0 = intercept, 1 = log_Fr, 2:6 = hull covariates.
+      as.integer((seq_along(term_names) - 1) %in% idx)
+    }))
+    colnames(out) <- term_names
+    return(out)
+  }
+
+  out <- as.matrix(which_obj)
+  if (ncol(out) == length(term_names)) {
+    colnames(out) <- term_names
+  } else if (ncol(out) == length(term_names) - 1) {
+    colnames(out) <- term_names[-1]
+  } else {
+    stop("Unexpected format for bas_fit$which. Inspect str(bas_fit$which).")
+  }
+  out
+}
+
+model_matrix <- as.data.frame(make_which_matrix(bas_fit$which, term_names))
+
+# Normalise posterior model probabilities and attach them to the model matrix.
+post_prob <- bas_fit$postprobs / sum(bas_fit$postprobs)
+model_matrix$post_prob <- post_prob
+
+# Check that log_Fr is indeed included in all models and that the five hull terms exist.
+stopifnot(all(model_matrix$log_Fr == 1))
+stopifnot(all(hull_covariates %in% names(model_matrix)))
+
+# Posterior inclusion probabilities computed directly from the enumerated models.
+# This avoids relying on version-dependent names in bas_fit$probne0.
+pip_hull <- sapply(hull_covariates, function(v) {
+  sum(model_matrix[[v]] * model_matrix$post_prob)
+})
+
+pip_sorted <- sort(pip_hull, decreasing = TRUE)
+pip_table <- data.frame(
+  covariate = names(pip_sorted),
+  PIP = round(as.numeric(pip_sorted), 3),
+  evidence = ifelse(pip_sorted >= 0.75, "strong",
+                    ifelse(pip_sorted >= 0.50, "moderate", "weak")),
+  row.names = NULL
+)
+
+pip_table
+
+# Explicit answer to the project question:
+# "which of LCB, prismatic, L/disp, B/draught, L/beam carry signal once Froude is in the model?"
+label_map <- c(
+  LCB = "LCB",
+  prismatic = "prismatic",
+  L_disp = "L/disp",
+  beam_draught = "B/draught",
+  L_beam = "L/beam"
+)
+
+signal_table <- data.frame(
+  requested_name = unname(label_map[pip_table$covariate]),
+  R_variable = pip_table$covariate,
+  PIP = pip_table$PIP,
+  evidence = pip_table$evidence,
+  answer = ifelse(
+    pip_table$evidence == "moderate",
+    "carries moderate signal",
+    "weak evidence; not retained as carrying signal"
+  ),
+  row.names = NULL
+)
+
+signal_table
+
+best_covariate <- pip_table$covariate[1]
+best_requested_name <- unname(label_map[best_covariate])
+best_pip <- pip_table$PIP[1]
+
+cat("Largest PIP:", best_requested_name, "(", best_covariate, ") =", best_pip, "\n")
+cat(
+  "Answer:",
+  best_requested_name, "(", best_covariate, ") is the only hull-geometry covariate with moderate evidence of carrying signal once Froude is included; the remaining hull covariates show weak evidence.\n"
+)
+```
+
+**Explicit answer to the project question.** The covariate that carries signal once `Froude` is in the model is **B/draught**, implemented in the data as `beam_draught`. In the rendered BAS/BMA output its PIP is about **0.565**, so the evidence is **moderate** rather than strong. The other four hull-geometry covariates -- `LCB`, `prismatic`, `L_disp` (L/disp), and `L_beam` (L/beam) -- have PIP values below 0.50, so they show weak evidence and are not retained as variables that clearly carry signal.
+
+```{r bas-pip-plot, fig.width=7, fig.height=4.6}
+barplot(
+  rev(pip_sorted),
+  horiz = TRUE,
+  las = 1,
+  xlim = c(0, 1),
+  xlab = "Posterior inclusion probability",
+  main = "BAS/BMA posterior inclusion probabilities"
+)
+abline(v = 0.5, lty = 2)
+text(
+  x = rev(pip_sorted) + 0.04,
+  y = seq_along(pip_sorted),
+  labels = round(rev(pip_sorted), 3),
+  cex = 0.8
+)
+```
+
+For transparency, we also print the most probable models. The formula below should be read as: `log_Fr` is always included; the listed hull variables are the extra terms selected in that submodel.
+
+```{r bas-top-models}
+top_models <- model_matrix[
+  order(-model_matrix$post_prob),
+  c(hull_covariates, "post_prob")
+]
+
+top_models$model <- apply(
+  top_models[, hull_covariates, drop = FALSE],
+  1,
+  function(z) {
+    chosen <- hull_covariates[as.logical(z)]
+    if (length(chosen) == 0) {
+      "log_Fr only"
+    } else {
+      paste("log_Fr +", paste(chosen, collapse = " + "))
+    }
+  }
+)
+
+top_models <- top_models[, c("model", "post_prob")]
+head(transform(top_models, post_prob = round(post_prob, 3)), 10)
+```
+
+Finally, we report the Bayesian model-averaged coefficient summary. These coefficients are averaged over all 32 models, so variables with low inclusion probability are automatically shrunk toward zero in the BMA estimate.
+
+```{r bas-coef-summary}
+bma_coef <- coef(bas_fit)
+print(bma_coef)
+```
+
+**Conclusion of part 2.** The BAS/BMA step does **not** find strong evidence for any single hull-geometry covariate once `Froude` is included. The clearest answer to the model-selection question is that **B/draught (`beam_draught`) is the only hull covariate that carries moderate signal**, with PIP about **0.565** in the rendered output. The remaining variables -- `LCB`, `prismatic`, `L_disp` (L/disp), and `L_beam` (L/beam) -- have weak posterior inclusion probabilities, all below 0.50. Therefore, the defensible conclusion is: the dominant signal is the Froude power law; hull geometry may have small secondary effects, but the data do not strongly identify a stable subset of hull covariates in the homoscedastic log-log model.
+
+This is consistent with part 1: in the full log-log regression, all five hull coefficients had 95% intervals crossing zero. BAS/BMA provides additional evidence that this is not just a single-model artefact; across the whole $2^5$ model space, no hull variable receives overwhelming posterior support.
+
+For parts 3 and 4, this gives a clear continuation point. The nonlinear heteroscedasticity-corrected model should carry forward **B/draught (`beam_draught`)** as the main reduced hull-geometry candidate, and it is also reasonable to compare it with a no-hull version as a sensitivity check, because the BAS evidence for hull effects is moderate rather than strong.
