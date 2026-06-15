@@ -946,3 +946,149 @@ par(op)
 The diagnostics show that the additive model is **not** homoscedastic on the original scale: the residual spread grows steeply with the fitted value (the scale-location curve slopes sharply upward and the high/low tertile spread ratio printed above is well above 1), and the standardized residuals fan out with `Froude`, neither (task 1 and 3) error model is uniformly correct, so the two are best judged by how well their predictive bands track the data across the whole Froude range.
 
 **Conclusion of part 3.** Under the corrected (additive) error model the hull covariate selected in part 2 is decisively supported: M1 beats M0 by a clear WAIC/PSIS-LOO margin, and $\beta_B$ is credibly negative, a wider beam relative to draught reduces residuary resistance per unit displacement at fixed Froude number. This sharpens part 2's verdict: the weak BAS evidence for `beam_draught` reflected the misspecified homoscedastic log-scale likelihood, not an absence of signal. The Froude-exponent inference, by contrast, is strongly error-model-dependent ($4.69$ vs $\approx 7.2$), which is exactly the heteroscedasticity impact.
+
+## 4. Posterior predictive curves
+
+The last comparison should be made on the original resistance scale, because this is where the data are observed and where the two error assumptions imply visibly different uncertainty bands. For a fair comparison, both bands below are **posterior predictive** bands: each draw includes uncertainty in the mean curve and one new observation-level error term.
+
+For the log-log model, the posterior predictive distribution is lognormal on the original scale: after drawing $(\beta,\sigma^2)$ from the reference-prior posterior, we simulate $$
+\log y_i^{\mathrm{rep}} \sim \mathcal N(x_i^\top\beta,\sigma^2),
+\qquad y_i^{\mathrm{rep}} = \exp(\log y_i^{\mathrm{rep}}).
+$$ For the heteroscedasticity-treated nonlinear model M1, the predictive distribution is additive normal on the original scale: $$
+y_i^{\mathrm{rep}} \sim \mathcal N\left(\exp\{b_0 + \gamma_F\widetilde{\log Fn}_i + \beta_B\widetilde{bd}_i\},\sigma^2\right).
+$$ The curves hold hull form fixed at a representative value: `beam_draught` is set to its sample median, while the other log-log hull covariates are set to their sample means. This isolates the Froude-resistance curve rather than mixing different hull geometries.
+
+```{r task4-posterior-predictive, fig.width=9, fig.height=5.8}
+set.seed(42)
+
+## Froude grid and representative hull values
+fr_grid <- seq(min(yh$Froude), max(yh$Froude), length.out = 160)
+bd_ref <- median(yh$beam_draught)
+hull_ref <- as.list(colMeans(yh[, c("LCB", "prismatic", "L_disp", "beam_draught", "L_beam")]))
+hull_ref$beam_draught <- bd_ref
+
+new_loglog <- data.frame(log_Fr = log(fr_grid), hull_ref)
+new_M1 <- cbind(intercept = 1,
+                log_Fr = log(fr_grid) - mF,
+                beam_draught = bd_ref - mB)
+
+## Draw posterior predictive samples for the reference-prior log-log model.
+## beta | sigma2, y is normal; sigma2 | y is inverse-gamma.
+draw_loglog_pred <- function(fit, newdata, n_draws = 5000) {
+  X <- model.matrix(fit)
+  y <- model.response(model.frame(fit))
+  p <- ncol(X)
+  df_res <- fit$df.residual
+  beta_hat <- coef(fit)
+  s2 <- sum(resid(fit)^2) / df_res
+  XtX_inv <- chol2inv(chol(crossprod(X)))
+  X_new <- model.matrix(delete.response(terms(fit)), newdata)
+
+  sigma2 <- df_res * s2 / rchisq(n_draws, df = df_res)
+  z <- matrix(rnorm(n_draws * p), nrow = n_draws)
+  beta <- sweep(z %*% chol(XtX_inv), 1, sqrt(sigma2), `*`)
+  beta <- sweep(beta, 2, beta_hat, `+`)
+
+  eta <- beta %*% t(X_new)
+  yrep <- exp(eta + matrix(rnorm(length(eta), sd = sqrt(sigma2)),
+                          nrow = n_draws, ncol = nrow(X_new)))
+  mu <- exp(eta + sigma2 / 2)   # posterior mean of resistance, not median
+
+  list(mean = colMeans(mu),
+       lower = apply(yrep, 2, quantile, 0.025),
+       upper = apply(yrep, 2, quantile, 0.975))
+}
+
+## Draw posterior predictive samples for the additive-error nonlinear M1 model.
+draw_M1_pred <- function(fit, X_new, n_draws = 5000) {
+  d <- as.matrix(fit)
+  d <- d[sample(seq_len(nrow(d)), n_draws), ]
+  theta <- d[, paste0("theta[", seq_len(ncol(X_new)), "]"), drop = FALSE]
+  sigma <- d[, "sigma"]
+
+  mu <- exp(theta %*% t(X_new))
+  yrep <- mu + matrix(rnorm(length(mu), sd = sigma),
+                      nrow = n_draws, ncol = nrow(X_new))
+
+  list(mean = colMeans(mu),
+       lower = apply(yrep, 2, quantile, 0.025),
+       upper = apply(yrep, 2, quantile, 0.975))
+}
+
+pp_loglog <- draw_loglog_pred(fit, new_loglog)
+pp_M1 <- draw_M1_pred(rw_M1, new_M1)
+
+## Coverage is evaluated at the observed design points, using the same predictive rule.
+obs_loglog <- data.frame(log_Fr = yh$log_Fr,
+                         LCB = yh$LCB, prismatic = yh$prismatic,
+                         L_disp = yh$L_disp, beam_draught = yh$beam_draught,
+                         L_beam = yh$L_beam)
+obs_M1 <- X1
+cover_loglog <- draw_loglog_pred(fit, obs_loglog, n_draws = 3000)
+cover_M1 <- draw_M1_pred(rw_M1, obs_M1, n_draws = 3000)
+coverage <- rbind(
+  `log-log, multiplicative errors` = c(
+    coverage = mean(yh$resistance >= cover_loglog$lower & yh$resistance <= cover_loglog$upper),
+    mean_band_width = mean(cover_loglog$upper - cover_loglog$lower)),
+  `nonlinear M1, additive errors` = c(
+    coverage = mean(yh$resistance >= cover_M1$lower & yh$resistance <= cover_M1$upper),
+    mean_band_width = mean(cover_M1$upper - cover_M1$lower))
+)
+round(coverage, 3)
+
+## Plot on the original scale. Negative lower tails from the additive normal
+## model are clipped only for display because resistance cannot be negative.
+ylim_top <- max(yh$resistance, pp_loglog$upper, pp_M1$upper)
+plot(yh$Froude, yh$resistance, pch = 16, cex = 0.65,
+     col = rgb(0, 0, 0, 0.42), xlab = "Froude number",
+     ylab = "residuary resistance", ylim = c(0, ylim_top * 1.04),
+     main = "Posterior predictive curves on the original scale")
+
+col_log <- rgb(0.1, 0.2, 0.7, 0.18)
+col_add <- rgb(0.8, 0.1, 0.1, 0.18)
+polygon(c(fr_grid, rev(fr_grid)),
+        c(pmax(pp_loglog$lower, 0), rev(pp_loglog$upper)),
+        col = col_log, border = NA)
+polygon(c(fr_grid, rev(fr_grid)),
+        c(pmax(pp_M1$lower, 0), rev(pp_M1$upper)),
+        col = col_add, border = NA)
+points(yh$Froude, yh$resistance, pch = 16, cex = 0.65,
+       col = rgb(0, 0, 0, 0.42))
+lines(fr_grid, pp_loglog$mean, col = "navy", lwd = 2.5)
+lines(fr_grid, pp_M1$mean, col = "firebrick", lwd = 2.5)
+legend("topleft", bty = "n", lwd = c(2.5, 2.5, NA), pch = c(NA, NA, 16),
+       pt.cex = c(NA, NA, 0.8),
+       col = c("navy", "firebrick", rgb(0, 0, 0, 0.42)),
+       legend = c("log-log predictive mean + 95% band",
+                  "additive nonlinear M1 predictive mean + 95% band",
+                  "observed data"))
+
+pdf("figures/posterior_predictive_curves.pdf", width = 9, height = 5.8)
+plot(yh$Froude, yh$resistance, pch = 16, cex = 0.65,
+     col = rgb(0, 0, 0, 0.42), xlab = "Froude number",
+     ylab = "residuary resistance", ylim = c(0, ylim_top * 1.04),
+     main = "Posterior predictive curves on the original scale")
+polygon(c(fr_grid, rev(fr_grid)),
+        c(pmax(pp_loglog$lower, 0), rev(pp_loglog$upper)),
+        col = col_log, border = NA)
+polygon(c(fr_grid, rev(fr_grid)),
+        c(pmax(pp_M1$lower, 0), rev(pp_M1$upper)),
+        col = col_add, border = NA)
+points(yh$Froude, yh$resistance, pch = 16, cex = 0.65,
+       col = rgb(0, 0, 0, 0.42))
+lines(fr_grid, pp_loglog$mean, col = "navy", lwd = 2.5)
+lines(fr_grid, pp_M1$mean, col = "firebrick", lwd = 2.5)
+legend("topleft", bty = "n", lwd = c(2.5, 2.5, NA), pch = c(NA, NA, 16),
+       pt.cex = c(NA, NA, 0.8),
+       col = c("navy", "firebrick", rgb(0, 0, 0, 0.42)),
+       legend = c("log-log predictive mean + 95% band",
+                  "additive nonlinear M1 predictive mean + 95% band",
+                  "observed data"))
+dev.off()
+```
+
+The plot shows the practical consequence of the two error models. The log-log fit keeps the Froude exponent near the physical fourth-power law and produces multiplicative uncertainty: its band is very tight near zero resistance and expands as resistance grows. This describes the low and middle Froude range well, but its mean curve is too flat at the highest speeds, where the data rise faster than the fitted $Fn^{4.69}$ law.
+
+The additive-error nonlinear fit reacts in the opposite direction. Because it assumes a roughly constant error standard deviation on the original scale, the high-resistance observations receive much more leverage than they had in the log-log likelihood. The fitted curve is therefore steeper ($\gamma_F\approx7.2$) and follows the high-Froude data better. Its predictive band is more nearly constant in absolute width, which is the intended heteroscedasticity correction relative to the log-log model, but this also makes the low-Froude band visibly too wide and can assign some probability to negative resistance before display clipping.
+
+**Conclusion of part 4.** Neither predictive family is perfect across the whole range. The log-log model gives the more natural positive, multiplicative uncertainty at low resistance, while the nonlinear additive model gives a better mean trend at high Froude and makes the selected hull covariate visible. The comparison therefore supports the main conclusion from part 3: inference on the Froude exponent and on `beam_draught` is strongly driven by the error model, so the posterior predictive curves are essential for interpreting the heteroscedasticity correction rather than relying only on coefficient summaries.
