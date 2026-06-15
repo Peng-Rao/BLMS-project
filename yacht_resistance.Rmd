@@ -1092,3 +1092,59 @@ The plot shows the practical consequence of the two error models. The log-log fi
 The additive-error nonlinear fit reacts in the opposite direction. Because it assumes a roughly constant error standard deviation on the original scale, the high-resistance observations receive much more leverage than they had in the log-log likelihood. The fitted curve is therefore steeper ($\gamma_F\approx7.2$) and follows the high-Froude data better. Its predictive band is more nearly constant in absolute width, which is the intended heteroscedasticity correction relative to the log-log model, but this also makes the low-Froude band visibly too wide and can assign some probability to negative resistance before display clipping.
 
 **Conclusion of part 4.** Neither predictive family is perfect across the whole range. The log-log model gives the more natural positive, multiplicative uncertainty at low resistance, while the nonlinear additive model gives a better mean trend at high Froude and makes the selected hull covariate visible. The comparison therefore supports the main conclusion from part 3: inference on the Froude exponent and on `beam_draught` is strongly driven by the error model, so the posterior predictive curves are essential for interpreting the heteroscedasticity correction rather than relying only on coefficient summaries.
+
+## Train/test validation check
+
+The four project questions above use the full dataset for Bayesian inference, which is the appropriate target for the scientific conclusions. The random 80/20 split is used only as an additional predictive check: fit simple training-set versions of the two mean structures and evaluate their predictions on the held-out test set.
+
+```{r train-test-validation}
+yh_train <- read.csv("data/yacht_train.csv")
+yh_test  <- read.csv("data/yacht_test.csv")
+
+yh_train$log_res <- log(yh_train$resistance)
+yh_train$log_Fr  <- log(yh_train$Froude)
+yh_test$log_res  <- log(yh_test$resistance)
+yh_test$log_Fr   <- log(yh_test$Froude)
+
+## Baseline: same full log-log mean structure as part 1, fitted only on training data.
+loglog_train <- lm(
+  log_res ~ log_Fr + LCB + prismatic + L_disp + beam_draught + L_beam,
+  data = yh_train
+)
+pred_loglog <- exp(predict(loglog_train, newdata = yh_test) +
+                     summary(loglog_train)$sigma^2 / 2)
+
+## Nonlinear mean from part 3, using the retained hull covariate beam_draught.
+## The log-log training fit gives stable starting values for nls().
+start_fit <- lm(log(resistance) ~ log(Froude) + beam_draught, data = yh_train)
+start_values <- list(
+  k = unname(exp(coef(start_fit)["(Intercept)"])),
+  gamma = unname(coef(start_fit)["log(Froude)"]),
+  beta_B = unname(coef(start_fit)["beam_draught"])
+)
+
+nls_train <- nls(
+  resistance ~ k * Froude^gamma * exp(beta_B * beam_draught),
+  data = yh_train,
+  start = start_values,
+  control = nls.control(maxiter = 200, warnOnly = TRUE)
+)
+pred_nls <- predict(nls_train, newdata = yh_test)
+
+metrics <- function(observed, predicted) {
+  c(
+    RMSE = sqrt(mean((observed - predicted)^2)),
+    MAE = mean(abs(observed - predicted))
+  )
+}
+
+validation_table <- rbind(
+  `log-log train fit` = metrics(yh_test$resistance, pred_loglog),
+  `nonlinear train fit` = metrics(yh_test$resistance, pred_nls)
+)
+
+round(validation_table, 3)
+coef(nls_train)
+```
+
+This train/test check is not used to replace the full-data posterior analysis. It is only a sanity check on predictive behaviour. On the generated split, the nonlinear mean has a smaller held-out RMSE and MAE than the log-log mean, which agrees with the posterior predictive plot: the additive-error nonlinear curve better tracks the high-Froude observations, while the log-log model remains the more conservative multiplicative-error baseline.
