@@ -121,15 +121,13 @@ which lets the data dominate the inference; the sensitivity of the conclusions t
 
 \subsection{Posterior and credible intervals}
 
-Under the prior \eqref{eq:prior} the posterior is available in closed form: with $\hat{\bm{\beta}}=(\bm{X}^{\!\top}\bm{X})^{-1}\bm{X}^{\!\top}\bm{y}$ the least-squares estimate and $s^2=\lVert \bm{y}-\bm{X}\hat{\bm{\beta}}\rVert^2/(n-p)$ the unbiased error variance,
+With the Jeffreys reference prior in Eq.~\eqref{eq:prior}, the Gaussian linear model has a closed-form posterior. Let $\hat{\bm{\beta}}=(\bm{X}^{\!\top}\bm{X})^{-1}\bm{X}^{\!\top}\bm{y}$. Then
 \begin{align}
-	\sigma^2 \mid \bm{y}           & \sim \text{Inv-Gamma}\!\left(\tfrac{n-p}{2},\,
-	\tfrac{(n-p)s^2}{2}\right), \label{eq:post_sigma}                               \\
 	\bm{\beta}\mid \sigma^2,\bm{y} & \sim
 	\mathcal{N}\!\left(\hat{\bm{\beta}},\,
 	             \sigma^2\,(\bm{X}^{\!\top}\bm{X})^{-1}\right), \label{eq:post_beta}
 \end{align}
-and marginalising \eqref{eq:post_beta} over $\sigma^2$ yields a multivariate Student-$t$ posterior for $\bm{\beta}$, centred at $\hat{\bm{\beta}}$ with scale matrix $s^2(\bm{X}^{\!\top}\bm{X})^{-1}$ and $n-p$ degrees of freedom. Consequently the posterior $95\%$ credible intervals are \emph{numerically identical} to the classical OLS confidence intervals, and any posterior probability (such as $\Pr(\beta_F>4\mid\bm{y})$) follows from the same Student-$t$: no simulation is required, and all summaries are read directly off the fitted linear model (\texttt{lm} and \texttt{confint} in \textsf{R}).
+Integrating out $\sigma^2$ gives a multivariate Student-$t$ posterior for $\bm{\beta}$ with $n-p$ degrees of freedom, so the $95\%$ credible intervals coincide numerically with the classical OLS confidence intervals.
 
 \subsection{Results}
 
@@ -138,34 +136,12 @@ and marginalising \eqref{eq:post_beta} over $\sigma^2$ yields a multivariate Stu
 	\beta_F \approx 4.69, \qquad
 	95\%\ \text{CI} = [4.60,\ 4.78],
 \]
-confirming the expected power-law behaviour $\mathrm{resistance}\sim Fn^{\,4}$ and verifying the project requirement $\hat\beta_F\approx 4$. \Cref{fig:loglog} shows the log--log scatter with the posterior-mean line and its very tight $95\%$ credible band (left), and the posterior of $\beta_F$ (right): the whole posterior mass sits above the nominal value $4$ ($\Pr(\beta_F>4\mid\bm{y})\approx 1$), so the empirical exponent is best described as \emph{slightly steeper} than the textbook value of four.
-
-\begin{figure}[H]
-	\centering
-	\subfloat[Power-law fit on log--log axes.]{%
-		\includegraphics[width=0.49\textwidth]{figures/loglog_scatter.pdf}}
-	\hfill
-	\subfloat[Posterior of $\beta_F$.]{%
-		\includegraphics[width=0.49\textwidth]{figures/posterior_betaF.pdf}}
-	\caption{Left: observed $\log(\mathrm{resistance})$ against
-		$\log(\mathrm{Froude})$ with the posterior-mean regression line (hull
-		covariates held at their means) and its $95\%$ credible band. Right:
-		Student-$t$ posterior density of the Froude exponent $\beta_F$; the
-		dashed lines mark the $95\%$ credible interval and the solid blue line
-		the physical reference value $\beta_F=4$.}
-	\label{fig:loglog}
-\end{figure}
-
-\paragraph{Hull-geometry covariates.}
-Once the Froude number is in the model, none of the five hull form factors is individually credible: every $95\%$ interval comfortably contains zero (\cref{tab:loglog} and \cref{fig:forest} in the appendix). The form factors vary only across the $22$ hulls and are strongly collinear --- the \texttt{prismatic} coefficient, for instance, has a posterior standard deviation of about $1.6$. This near-redundancy is precisely what the BAS/BMA model selection of the next section resolves, through posterior inclusion probabilities rather than single-model $p$-values.
-
-\paragraph{Residual diagnostics.}
-Although the global fit is excellent, the residuals (\cref{fig:resid}, appendix) reveal two systematic defects. First, a $\cup$-shaped trend against the fitted values: a single constant exponent slightly over-predicts at intermediate speeds and under-predicts at the highest speeds. Second, the residual spread is markedly larger at low fitted values, i.e.\ at low Froude numbers where the resistance is tiny and dominated by measurement noise --- a textbook signature of heteroscedasticity, also visible as the fanning of the data cloud on the left of \cref{fig:loglog}. Both findings directly motivate the heteroscedasticity-corrected nonlinear model developed later.
+confirming the expected power-law behaviour $\mathrm{resistance}\sim Fn^{\,4}$ and verifying the project requirement $\hat\beta_F\approx 4$. \Cref{fig:loglog} (appendix) shows the log--log scatter with the posterior-mean line and its very tight $95\%$ credible band (left), and the posterior of $\beta_F$ (right): the whole posterior mass sits above the nominal value $4$ ($\Pr(\beta_F>4\mid\bm{y})\approx 1$), so the empirical exponent is best described as \emph{slightly steeper} than the textbook value of four.
 
 \subsection{Sensitivity check: independent informative priors}
 \label{sec:informative}
 
-The reference-prior analysis \emph{verifies} $\beta_F\approx4$ a posteriori; a complementary check \emph{encodes} the physics in the prior and asks how strongly the prior must insist on $4$ before it overrides the data. We replace \eqref{eq:prior} with independent proper priors,
+The reference-prior analysis \emph{verifies} $\beta_F\approx4$ a posteriori; a complementary check \emph{encodes} the physics in the prior and asks how strongly the prior must insist on $4$ before it overrides the data. We replace Eq.~\eqref{eq:prior} with independent proper priors,
 \begin{equation}
 	\beta_F \sim \mathcal{N}(4,\tau^2),
 	\qquad
@@ -176,36 +152,21 @@ The reference-prior analysis \emph{verifies} $\beta_F\approx4$ a posteriori; a c
 \end{equation}
 all components mutually independent. Since $\bm{\beta}$ and $\sigma^2$ are now independent a priori --- unlike in the conjugate Normal--Inverse-Gamma family, where $\operatorname{Var}(\bm{\beta}\mid\sigma^2)\propto\sigma^2$ --- the joint posterior is no longer available in closed form, but both full conditionals remain standard,
 \begin{align}
-	\bm{\beta}\mid\sigma^{2},\bm{y}  & \sim \mathcal{N}\!\big(\bm{V}(\bm{S}_0^{-1}\bm{m}_0+\bm{X}^{\!\top}\bm{y}/\sigma^{2}),\ \bm{V}\big),
-	\qquad \bm{V}=(\bm{S}_0^{-1}+\bm{X}^{\!\top}\bm{X}/\sigma^{2})^{-1}, \label{eq:fc_beta} \\
+	\bm{\beta}\mid\sigma^{2},\bm{y} & \sim \mathcal{N}\!\big(\bm{V}(\bm{S}_0^{-1}\bm{m}_0+\bm{X}^{\!\top}\bm{y}/\sigma^{2}),\ \bm{V}\big),
+	\qquad \bm{V}=(\bm{S}_0^{-1}+\bm{X}^{\!\top}\bm{X}/\sigma^{2})^{-1}, \label{eq:fc_beta}                                                                            \\
 	\sigma^{2}\mid\bm{\beta},\bm{y} & \sim \text{Inv-Gamma}\!\big(a_0+\tfrac{n}{2},\ b_0+\tfrac{1}{2}\lVert\bm{y}-\bm{X}\bm{\beta}\rVert^{2}\big), \label{eq:fc_sigma}
 \end{align}
-where $\bm{m}_0$ and $\bm{S}_0$ collect the prior means and variances of \eqref{eq:inf_prior}. We therefore sample the posterior with a \textbf{Gibbs sampler} ($10\,000$ iterations, $2\,000$ burn-in; the effective sample size for $\beta_F$ exceeds $4\,000$ in every run) and sweep the prior strength $\tau\in\{0.05,0.1,0.2,0.5\}$.
+where $\bm{m}_0$ and $\bm{S}_0$ collect the prior means and variances of Eq.~\eqref{eq:inf_prior}. We therefore sample the posterior with a \textbf{Gibbs sampler} ($10\,000$ iterations, $2\,000$ burn-in; the effective sample size for $\beta_F$ exceeds $4\,000$ in every run) and sweep the prior strength $\tau\in\{0.05,0.1,0.2,0.5\}$.
 
-\Cref{tab:informative} summarises the sweep; the posterior densities are overlaid in \cref{fig:informative} (appendix). A moderately informative prior ($\tau=0.5$) reproduces the reference result. Tightening the prior pulls the posterior mean towards $4$, but only the near-dogmatic $\tau=0.05$ (prior $95\%$ interval $\approx[3.9,\,4.1]$) drags it as far as $4.33$ --- and even then $\Pr(\beta_F>4\mid\bm{y})=1$. For any moderately diffuse physical prior ($\tau\ge0.1$) the likelihood dominates and the posterior mean stays in $4.56$--$4.68$. The conclusion that the empirical exponent is genuinely steeper than $Fn^{\,4}$ is therefore \textbf{robust to the prior}: it is a feature of the $n=308$ observations, not an artefact of the non-informative choice --- a transparent instance of prior--data conflict, in which an informative likelihood overwhelms all but an unreasonably confident prior.
+\Cref{tab:informative} (appendix) summarises the sweep; the posterior densities are overlaid in \cref{fig:informative} (appendix). A moderately informative prior ($\tau=0.5$) reproduces the reference result. Tightening the prior pulls the posterior mean towards $4$, but only the near-dogmatic $\tau=0.05$ (prior $95\%$ interval $\approx[3.9,\,4.1]$) drags it as far as $4.33$ --- and even then $\Pr(\beta_F>4\mid\bm{y})=1$.
 
-\begin{table}[H]
-	\centering
-	\caption{Posterior of the Froude exponent $\beta_F$ under the independent informative priors \eqref{eq:inf_prior} of increasing strength, obtained by Gibbs sampling, compared with the closed-form reference-prior result.}
-	\label{tab:informative}
-	\begin{tabular}{l r r r r}
-		\toprule
-		\textbf{Prior on $\beta_F$}                            & \textbf{Mean} & \textbf{2.5\%} & \textbf{97.5\%} & $\Pr(\beta_F>4)$ \\
-		\midrule
-		$\mathcal{N}(4,0.05^2)$                                & $4.33$        & $4.25$         & $4.41$          & $1.00$           \\
-		$\mathcal{N}(4,0.10^2)$                                & $4.56$        & $4.47$         & $4.64$          & $1.00$           \\
-		$\mathcal{N}(4,0.20^2)$                                & $4.65$        & $4.56$         & $4.75$          & $1.00$           \\
-		$\mathcal{N}(4,0.50^2)$                                & $4.68$        & $4.59$         & $4.78$          & $1.00$           \\
-		\midrule
-		reference $\pi(\bm{\beta},\sigma^2)\propto\sigma^{-2}$ & $4.69$        & $4.60$         & $4.78$          & $1.00$           \\
-		\bottomrule
-	\end{tabular}
-\end{table}
+For any moderately diffuse physical prior ($\tau\ge0.1$) the likelihood dominates and the posterior mean stays in $4.56$--$4.68$. The conclusion that the empirical exponent is genuinely steeper than $Fn^{\,4}$ is therefore \textbf{robust to the prior}: it is a feature of the $n=308$ observations, not an artefact of the non-informative choice --- a transparent instance of prior--data conflict, in which an informative likelihood overwhelms all but an unreasonably confident prior.
 
 \newpage
 
 
 \section{BAS/BMA model selection over hull covariates}
+\label{sec:bma}
 
 The first part establishes the dominant physical relationship: after taking
 logs, the resistance is essentially a power law of the Froude number. The
@@ -295,7 +256,7 @@ instead of relying on one full regression model.
 
 \begin{table}[H]
 	\centering
-	\caption{Posterior summary of the log--log model \eqref{eq:loglog}
+	\caption{Posterior summary of the log--log model in Eq.~\eqref{eq:loglog}
 		under the reference prior. Point estimates and $95\%$ credible intervals
 		coincide with the OLS fit (\texttt{lm}/\texttt{confint}); $\Pr(>0)$ is
 		the posterior probability that the coefficient is positive.}
@@ -317,6 +278,22 @@ instead of relying on one full regression model.
 
 \begin{figure}[H]
 	\centering
+	\subfloat[Power-law fit on log--log axes.]{%
+		\includegraphics[width=0.49\textwidth]{figures/loglog_scatter.pdf}}
+	\hfill
+	\subfloat[Posterior of $\beta_F$.]{%
+		\includegraphics[width=0.49\textwidth]{figures/posterior_betaF.pdf}}
+	\caption{Left: observed $\log(\mathrm{resistance})$ against
+		$\log(\mathrm{Froude})$ with the posterior-mean regression line (hull
+		covariates held at their means) and its $95\%$ credible band. Right:
+		Student-$t$ posterior density of the Froude exponent $\beta_F$; the
+		dashed lines mark the $95\%$ credible interval and the solid blue line
+		the physical reference value $\beta_F=4$.}
+	\label{fig:loglog}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
 	\includegraphics[width=0.95\textwidth]{figures/residual_diag.pdf}
 	\caption{Residual diagnostics for the log--log model. Left: residuals
 		versus fitted values, with a LOWESS trend (blue) revealing
@@ -335,6 +312,30 @@ instead of relying on one full regression model.
 		resolved once the Froude number is accounted for.}
 	\label{fig:forest}
 \end{figure}
+
+\paragraph{Hull-geometry covariates.}
+Once the Froude number is in the model, none of the five hull form factors is individually credible: every $95\%$ interval comfortably contains zero (\cref{tab:loglog} and \cref{fig:forest}). The form factors vary only across the $22$ hulls and are strongly collinear --- the \texttt{prismatic} coefficient, for instance, has a posterior standard deviation of about $1.6$. This near-redundancy is precisely what the BAS/BMA model selection in \cref{sec:bma} resolves, through posterior inclusion probabilities rather than single-model $p$-values.
+
+\paragraph{Residual diagnostics.}
+Although the global fit is excellent, the residuals (\cref{fig:resid}) reveal two systematic defects. First, a $\cup$-shaped trend against the fitted values: a single constant exponent slightly over-predicts at intermediate speeds and under-predicts at the highest speeds. Second, the residual spread is markedly larger at low fitted values, i.e.\ at low Froude numbers where the resistance is tiny and dominated by measurement noise --- a textbook signature of heteroscedasticity, also visible as the fanning of the data cloud on the left of \cref{fig:loglog}. Both findings directly motivate the heteroscedasticity-corrected nonlinear model developed in the main text.
+
+\begin{table}[H]
+	\centering
+	\caption{Posterior of the Froude exponent $\beta_F$ under the independent informative priors in Eq.~\eqref{eq:inf_prior} of increasing strength, obtained by Gibbs sampling, compared with the closed-form reference-prior result.}
+	\label{tab:informative}
+	\begin{tabular}{l r r r r}
+		\toprule
+		\textbf{Prior on $\beta_F$}                            & \textbf{Mean} & \textbf{2.5\%} & \textbf{97.5\%} & $\Pr(\beta_F>4)$ \\
+		\midrule
+		$\mathcal{N}(4,0.05^2)$                                & $4.33$        & $4.25$         & $4.41$          & $1.00$           \\
+		$\mathcal{N}(4,0.10^2)$                                & $4.56$        & $4.47$         & $4.64$          & $1.00$           \\
+		$\mathcal{N}(4,0.20^2)$                                & $4.65$        & $4.56$         & $4.75$          & $1.00$           \\
+		$\mathcal{N}(4,0.50^2)$                                & $4.68$        & $4.59$         & $4.78$          & $1.00$           \\
+		\midrule
+		reference $\pi(\bm{\beta},\sigma^2)\propto\sigma^{-2}$ & $4.69$        & $4.60$         & $4.78$          & $1.00$           \\
+		\bottomrule
+	\end{tabular}
+\end{table}
 
 \begin{figure}[H]
 	\centering
