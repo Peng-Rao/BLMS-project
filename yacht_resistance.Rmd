@@ -508,12 +508,13 @@ Overall, the safest conclusion is that **Froude explains the main resistance sca
 
 ## 3. Heteroscedasticity-corrected nonlinear model (random-walk Metropolis)
 
-The log-log model of part 1 assumes *multiplicative* lognormal errors: back on the original scale it implies a noise standard deviation proportional to the resistance itself, which the residual diagnostics contradicted. Part 3 keeps the same power-law mean but moves the noise to the original scale, **additive and homoscedastic**:
+The log-log model of part 1 assumes *multiplicative* lognormal errors (a noise standard deviation proportional to the resistance), while a first additive version of part 3 went to the opposite extreme of a **constant-variance** error with a single $\sigma$. The residual diagnostics below show that neither extreme is right: on the original scale the residual spread clearly *grows* with the fitted resistance, so a constant $\sigma$ does **not** actually correct the heteroscedasticity — it only moves it from the log scale to the original scale. Part 3 therefore keeps the power-law mean but **learns how the variance grows** instead of fixing it. We model
 
-$$\mathrm{resistance}_i \;=\; \mu_i + \varepsilon_i, \qquad \varepsilon_i \sim \mathcal N(0, \sigma^2)
-\qquad\Longleftrightarrow\qquad \mathrm{resistance}_i \;\sim\; \mathcal N(\mu_i,\ \sigma^2),$$
+$$\mathrm{resistance}_i \;\sim\; \mathcal N\!\big(\mu_i,\ \sigma_i^2\big),
+\qquad \sigma_i \;=\; \sigma_0\,\mu_i^{\delta}
+\;=\; \exp\{\log\sigma_0 + \delta\,\log\mu_i\},$$
 
-with mean $\mu_i = k\,\mathrm{Froude}_i^{\gamma_F}\,\exp\{\beta_B\,\mathrm{bd}_i\}$. For the sampler we rewrite this product of powers as the exponential of a linear expression, using only the identities $a = e^{\log a}$ and $a^b = e^{b \log a}$ (valid because $k > 0$ and $\mathrm{Froude}_i > 0$):
+with mean $\mu_i = k\,\mathrm{Froude}_i^{\gamma_F}\,\exp\{\beta_B\,\mathrm{bd}_i\}$. The new exponent $\delta$ is an unknown parameter that **interpolates between the two error models**: $\delta=0$ recovers the constant-variance additive model, while $\delta=1$ gives a noise standard deviation proportional to the mean (the multiplicative/lognormal regime of part 1). Letting the data estimate $\delta$ — i.e. *learning the variance function* rather than assuming it — is the actual heteroscedasticity correction. For the sampler we rewrite the product of powers in $\mu_i$ as the exponential of a linear expression, using only the identities $a = e^{\log a}$ and $a^b = e^{b \log a}$ (valid because $k > 0$ and $\mathrm{Froude}_i > 0$):
 
 $$\mu_i
 = k \cdot \mathrm{Froude}_i^{\gamma_F} \cdot e^{\beta_B\,\mathrm{bd}_i}
@@ -531,11 +532,13 @@ The slopes $\gamma_F$ and $\beta_B$ are untouched by this rewriting; only the in
 
 $$k \;=\; \exp\big\{b_0 - \gamma_F m_F - \beta_B m_B\big\} \quad \text{(applied to every posterior draw).}$$
 
-Following the BAS result of part 2 we keep only `beam_draught` (bd) and fit two models: **M0** (Froude only) and **M1** (Froude + beam_draught). Priors: $b_0\sim\mathcal N(0,10^2)$, $\gamma_F\sim\mathcal N(4,2^2)$ (weakly informative, centred at the physical value), $\beta_B\sim\mathcal N(0,2^2)$, $1/\sigma^2\sim\mathrm{Gamma}(0.01,0.01)$. As a sensitivity check the $\gamma_F$ prior is also replaced by a vague $\mathcal N(0,10^2)$ and an informative $\mathcal N(4,0.5^2)$.
+The variance reuses the very same linear predictor: writing $\eta_i = b_0 + \gamma_F\,\tilde x_{F,i} + \beta_B\,\tilde x_{B,i}=\log\mu_i$, the observation standard deviation is simply $\sigma_i = \exp\{\log\sigma_0 + \delta\,\eta_i\}$, so no extra design matrix is needed and $\sigma_i$ is invariant to the centring (it is a function of the physical mean $\mu_i$).
 
-The parameters enter the mean through an exponential, so the likelihood is not conjugate with any standard prior and the posterior has no closed form. We sample it with a **random-walk Metropolis-within-Gibbs** sampler. At each iteration we propose the whole regression vector $\theta=(b_0,\gamma_F,\beta_B)$ by $$\theta^\star=\theta^{(t)}+\eta,\qquad \eta\sim\mathcal N(0,\mathrm{diag}(s_1^2,\ldots,s_p^2)),$$ and accept/reject it with the usual Metropolis-Hastings posterior ratio. Conditional on $\theta$, the precision $\tau=1/\sigma^2$ is conjugate, so it is updated exactly from its Gamma full conditional. Thus the sampler is random-walk Metropolis for the nonlinear mean parameters, plus a Gibbs update for the precision.
+Following the BAS result of part 2 we keep only `beam_draught` (bd) and fit two models: **M0** (Froude only) and **M1** (Froude + beam_draught). For the mean parameters the priors are $b_0\sim\mathcal N(0,10^2)$, $\gamma_F\sim\mathcal N(4,2^2)$ (weakly informative, centred at the physical value) and $\beta_B\sim\mathcal N(0,2^2)$. For the variance function we use weakly-informative priors on the two new parameters, $\log\sigma_0\sim\mathcal N(0,10^2)$ and $\delta\sim\mathcal N(0,1^2)$; the prior on $\delta$ is centred at $0$ (homoscedasticity) so that the data, not the prior, decide whether and how fast the variance grows. As a sensitivity check the $\gamma_F$ prior is also replaced by a vague $\mathcal N(0,10^2)$ and an informative $\mathcal N(4,0.5^2)$.
 
-One computational detail concerns the choice of the centring constants $m_F, m_B$. With *ordinary* means, the chains for $b_0$ and $\gamma_F$ mix very poorly: under additive errors the likelihood is dominated by the large-resistance (high-Froude) rows, so changing the slope $\gamma_F$ can be almost perfectly compensated by changing the intercept, and the posterior of $(b_0,\gamma_F)$ becomes a long thin ridge that a random-walk proposal crosses very slowly. We therefore centre at a *weighted* mean with weights proportional to $y_i^2$ which makes $b_0$ and $\gamma_F$ nearly uncorrelated and lets the sampler mix freely. This is purely a reparametrization for the benefit of the sampler (the slopes are untouched and the intercept is back-transformed to $k$ afterwards, so the reported inference is unaffected); we also showed the comparison of the mixing time below.
+Both the mean and the variance now depend on the parameters through the nonlinear exponential link, so the likelihood is not conjugate with any standard prior and the posterior has no closed form. In particular, **the precision can no longer be updated by a closed-form Gibbs step**, because $\sigma_i$ now depends on the mean parameters $\theta$ through $\mu_i$. We therefore sample the whole posterior with a **random-walk Metropolis-within-Gibbs** sampler that alternates two Metropolis blocks: the mean vector $\theta=(b_0,\gamma_F,\beta_B)$ and the variance vector $\psi=(\log\sigma_0,\delta)$. Each block is proposed by a Gaussian random walk, $\theta^\star=\theta^{(t)}+\eta$ with $\eta\sim\mathcal N(0,\mathrm{diag}(s_1^2,\ldots,s_p^2))$ (and likewise for $\psi$), and accepted/rejected with the usual Metropolis-Hastings posterior ratio. The per-block proposal scale is tuned automatically toward a target acceptance of about $0.3$ by a vanishing (Robbins-Monro) adaptation during the first part of the burn-in and then **frozen**, so the retained draws come from a fixed-kernel Markov chain.
+
+One computational detail concerns the choice of the centring constants $m_F, m_B$. With *ordinary* means, the chains for $b_0$ and $\gamma_F$ mix very poorly: the likelihood is dominated by the large-resistance (high-Froude) rows, so changing the slope $\gamma_F$ can be almost perfectly compensated by changing the intercept, and the posterior of $(b_0,\gamma_F)$ becomes a long thin ridge that a random-walk proposal crosses very slowly. We therefore centre at a *weighted* mean with weights proportional to $y_i^2$ which makes $b_0$ and $\gamma_F$ nearly uncorrelated and lets the sampler mix freely. This is purely a reparametrization for the benefit of the sampler (the slopes are untouched and the intercept is back-transformed to $k$ afterwards, so the reported inference is unaffected); we also showed the comparison of the mixing time below.
 
 ```{r task3-prep}
 y_res <- yh$resistance
@@ -559,78 +562,113 @@ if (!requireNamespace("coda", quietly = TRUE)) {
 }
 library(coda)
 
-## Log posterior kernel for theta | tau, y.
+## Log posterior kernel for the heteroscedastic model.
+##   y_i ~ N(mu_i, sigma_i^2),  mu_i = exp(eta_i),  eta_i = X_i %*% theta,
+##   sigma_i = sigma0 * mu_i^delta = exp(psi[1] + psi[2] * eta_i),  psi = (log sigma0, delta).
 ## The normalizing constants do not matter for the MH acceptance ratio.
-logpost_theta <- function(theta, tau, X, prior_mean, prior_sd) {
+logpost <- function(theta, psi, X, prior_mean, prior_sd,
+                    pr_logsig0 = c(0, 10), pr_delta = c(0, 1)) {
   eta <- as.vector(X %*% theta)
   if (any(!is.finite(eta)) || any(eta > 50)) {
     return(-Inf)
   }
   mu <- exp(eta)
-  if (any(!is.finite(mu))) {
+  log_sigma <- psi[1] + psi[2] * eta          # log sigma0 + delta * log(mu)
+  if (any(log_sigma > 50)) {
     return(-Inf)
   }
-  sum(dnorm(y_res, mu, sd = 1 / sqrt(tau), log = TRUE)) +
-    sum(dnorm(theta, prior_mean, prior_sd, log = TRUE))
+  sigma <- exp(log_sigma)
+  if (any(!is.finite(mu)) || any(!is.finite(sigma)) || any(sigma <= 0)) {
+    return(-Inf)
+  }
+  sum(dnorm(y_res, mu, sd = sigma, log = TRUE)) +
+    sum(dnorm(theta, prior_mean, prior_sd, log = TRUE)) +
+    dnorm(psi[1], pr_logsig0[1], pr_logsig0[2], log = TRUE) +
+    dnorm(psi[2], pr_delta[1], pr_delta[2], log = TRUE)
 }
 
-## Random-walk Metropolis-within-Gibbs sampler.
-## theta is updated as one block by random-walk MH; tau is updated exactly.
-run_rwmh <- function(X, prior_mean, prior_sd, prop_sd, n_chains = 4,
-                     n_iter = 100000, burn = 20000, thin = 5,
-                     gamma_inits = c(3, 6, 5, 4), seed0 = 2026) {
+## Random-walk Metropolis-within-Gibbs sampler with TWO Metropolis blocks:
+##   theta = (b0, gamma_F, beta_B)  -- the nonlinear mean parameters,
+##   psi   = (log sigma0, delta)    -- the variance-function parameters.
+## There is no conjugate Gibbs update any more: because sigma_i depends on the
+## mean parameters, the precision cannot be drawn in closed form, so the
+## variance block is also updated by random-walk Metropolis. The per-block
+## proposal scale is adapted (Robbins-Monro) during the first 60% of burn-in
+## to a target acceptance ~0.3 and then frozen.
+run_rwmh <- function(X, prior_mean, prior_sd,
+                     base_sd_theta, base_sd_psi = c(0.05, 0.05),
+                     n_chains = 4, n_iter = 60000, burn = 20000, thin = 5,
+                     gamma_inits = c(3, 6, 5, 4), delta_inits = c(0, 1, 0.5, 1.2),
+                     seed0 = 2026, target = 0.30, fix_delta = NULL) {
+  ## fix_delta = 0 pins delta and updates only log sigma0 -> a constant-variance
+  ## (homoscedastic) baseline, used in the model comparison below.
   p <- ncol(X)
-  stopifnot(length(prior_mean) == p, length(prior_sd) == p, length(prop_sd) == p)
-  stopifnot(length(gamma_inits) >= n_chains)
+  stopifnot(length(prior_mean) == p, length(prior_sd) == p, length(base_sd_theta) == p)
+  stopifnot(length(gamma_inits) >= n_chains, length(delta_inits) >= n_chains)
 
-  a0 <- 0.01
-  b0 <- 0.01
   theta_start <- coef(lm(log(y_res) ~ X - 1))   # crude start from the log fit
+  n_keep <- floor((n_iter - burn) / thin)
+  adapt_until <- floor(burn * 0.6)
 
   chains <- vector("list", n_chains)
-  accept_rate <- numeric(n_chains)
-  n_keep <- floor((n_iter - burn) / thin)
+  acc_theta <- numeric(n_chains)
+  acc_psi   <- numeric(n_chains)
 
   for (ch in seq_len(n_chains)) {
     set.seed(seed0 + ch)
     theta <- theta_start
     theta[2] <- gamma_inits[ch]
-    tau <- 1
-    current_lp <- logpost_theta(theta, tau, X, prior_mean, prior_sd)
-    keep <- matrix(NA_real_, n_keep, p + 2)
-    colnames(keep) <- c(paste0("theta[", seq_len(p), "]"), "sigma", "sigma2")
+    ## start sigma0 at the residual sd of this start, delta over-dispersed across chains
+    psi <- c(log(sd(y_res - exp(as.vector(X %*% theta)))),
+             if (is.null(fix_delta)) delta_inits[ch] else fix_delta)
+    current_lp <- logpost(theta, psi, X, prior_mean, prior_sd)
 
-    accepted <- 0L
+    ls_theta <- 0           # log adaptive scale, mean block
+    ls_psi   <- 0           # log adaptive scale, variance block
+    a_theta  <- 0L
+    a_psi    <- 0L
+
+    keep <- matrix(NA_real_, n_keep, p + 2)
+    colnames(keep) <- c(paste0("theta[", seq_len(p), "]"), "sigma0", "delta")
     k <- 0L
     for (it in seq_len(n_iter)) {
-      theta_prop <- theta + rnorm(p, mean = 0, sd = prop_sd)
-      prop_lp <- logpost_theta(theta_prop, tau, X, prior_mean, prior_sd)
-
-      if (log(runif(1)) < prop_lp - current_lp) {
+      ## --- block 1: mean parameters theta ---
+      theta_prop <- theta + exp(ls_theta) * base_sd_theta * rnorm(p)
+      prop_lp <- logpost(theta_prop, psi, X, prior_mean, prior_sd)
+      acc1 <- log(runif(1)) < prop_lp - current_lp
+      if (acc1) {
         theta <- theta_prop
         current_lp <- prop_lp
-        accepted <- accepted + 1L
+        a_theta <- a_theta + 1L
       }
+      if (it <= adapt_until) ls_theta <- ls_theta + (1 / it^0.6) * (acc1 - target)
 
-      resid <- y_res - exp(as.vector(X %*% theta))
-      tau <- rgamma(1, shape = a0 + n_obs / 2,
-                    rate = b0 + sum(resid^2) / 2)
-      current_lp <- logpost_theta(theta, tau, X, prior_mean, prior_sd)
+      ## --- block 2: variance parameters psi = (log sigma0, delta) ---
+      psi_prop <- psi + exp(ls_psi) * base_sd_psi * rnorm(2)
+      if (!is.null(fix_delta)) psi_prop[2] <- fix_delta   # pin delta if requested
+      prop_lp <- logpost(theta, psi_prop, X, prior_mean, prior_sd)
+      acc2 <- log(runif(1)) < prop_lp - current_lp
+      if (acc2) {
+        psi <- psi_prop
+        current_lp <- prop_lp
+        a_psi <- a_psi + 1L
+      }
+      if (it <= adapt_until) ls_psi <- ls_psi + (1 / it^0.6) * (acc2 - target)
 
       if (it > burn && (it - burn) %% thin == 0) {
         k <- k + 1L
-        sigma2 <- 1 / tau
-        keep[k, ] <- c(theta, sqrt(sigma2), sigma2)
+        keep[k, ] <- c(theta, exp(psi[1]), psi[2])   # store sigma0 (not log) and delta
       }
     }
 
     chains[[ch]] <- mcmc(keep)
-    accept_rate[ch] <- accepted / n_iter
+    acc_theta[ch] <- a_theta / n_iter
+    acc_psi[ch]   <- a_psi / n_iter
   }
 
   out <- mcmc.list(chains)
-  attr(out, "accept_rate") <- accept_rate
-  attr(out, "proposal_sd") <- prop_sd
+  attr(out, "acc_theta") <- acc_theta
+  attr(out, "acc_psi")   <- acc_psi
   out
 }
 
@@ -638,11 +676,11 @@ accept_table <- function(...) {
   fits <- list(...)
   data.frame(
     run = names(fits),
-    acceptance_rate = vapply(fits, function(z) {
-      paste(round(attr(z, "accept_rate"), 3), collapse = ", ")
+    acc_theta_block = vapply(fits, function(z) {
+      paste(round(attr(z, "acc_theta"), 3), collapse = ", ")
     }, character(1)),
-    proposal_sd = vapply(fits, function(z) {
-      paste(attr(z, "proposal_sd"), collapse = ", ")
+    acc_variance_block = vapply(fits, function(z) {
+      paste(round(attr(z, "acc_psi"), 3), collapse = ", ")
     }, character(1)),
     row.names = NULL
   )
@@ -653,21 +691,21 @@ accept_table <- function(...) {
 ## main prior, 4 chains each
 rw_M0 <- run_rwmh(
   X0, prior_mean = c(0, 4), prior_sd = c(10, 2),
-  prop_sd = c(0.008, 0.12)
+  base_sd_theta = c(0.02, 0.15)
 )
 rw_M1 <- run_rwmh(
   X1, prior_mean = c(0, 4, 0), prior_sd = c(10, 2, 2),
-  prop_sd = c(0.006, 0.095, 0.011)
+  base_sd_theta = c(0.02, 0.15, 0.02)
 )
 
 ## gamma_F prior sensitivity (M1, 2 chains each)
 rw_M1_vague <- run_rwmh(
   X1, prior_mean = c(0, 0, 0), prior_sd = c(10, 10, 2),
-  prop_sd = c(0.006, 0.095, 0.011), n_chains = 2
+  base_sd_theta = c(0.02, 0.15, 0.02), n_chains = 2
 )
 rw_M1_inform <- run_rwmh(
   X1, prior_mean = c(0, 4, 0), prior_sd = c(10, 0.5, 2),
-  prop_sd = c(0.006, 0.095, 0.011), n_chains = 2
+  base_sd_theta = c(0.02, 0.15, 0.02), n_chains = 2
 )
 
 accept_table(
@@ -680,11 +718,11 @@ accept_table(
 
 ### Convergence diagnostics
 
-MCMC draws are only valid posterior samples after the chains have converged to the target distribution, so before any inference we check five things. (1) **Acceptance rates**: for a random-walk Metropolis update they should be neither close to 0 nor close to 1; values around 0.3--0.5 are acceptable here. (2) **Traceplots**: each parameter's chains should look like stationary noise around a fixed level, with the independently started chains overlapping. (3) **Gelman--Rubin** $\hat R$: the chains were started from deliberately different values of $\gamma_F$ (3, 6, 5, 4); $\hat R$ compares the variance *between* chains to the variance *within* chains, and is $\approx 1$ only when all chains explore the same distribution -- we require $\hat R < 1.01$. (4) **Effective sample size (ESS)**: consecutive MCMC draws are autocorrelated, so the kept MCMC draws carry less information than independent samples; ESS is the equivalent number of independent draws, and we want it in the thousands so that posterior quantiles are stable. (5) **Autocorrelation plots**: the autocorrelation of the chain should decay to zero within a few lags; slow decay explains a low ESS.
+MCMC draws are only valid posterior samples after the chains have converged to the target distribution, so before any inference we check five things. (1) **Acceptance rates**: there are now two random-walk blocks (the mean parameters $\theta$ and the variance parameters $\psi=(\log\sigma_0,\delta)$), and for each the acceptance rate should be neither close to 0 nor close to 1; the adaptation targets $\approx 0.3$, which is in the acceptable range. (2) **Traceplots**: each parameter's chains should look like stationary noise around a fixed level, with the independently started chains overlapping. (3) **Gelman--Rubin** $\hat R$: the chains were started from deliberately different values of $\gamma_F$ (3, 6, 5, 4) and of $\delta$ (0, 1, 0.5, 1.2); $\hat R$ compares the variance *between* chains to the variance *within* chains, and is $\approx 1$ only when all chains explore the same distribution -- we require $\hat R < 1.01$. (4) **Effective sample size (ESS)**: consecutive MCMC draws are autocorrelated, so the kept MCMC draws carry less information than independent samples; ESS is the equivalent number of independent draws, and we want it in the thousands so that posterior quantiles are stable. (5) **Autocorrelation plots**: the autocorrelation of the chain should decay to zero within a few lags; slow decay explains a low ESS.
 
 ```{r task3-diagnostics, fig.width=10, fig.height=6}
 par_labels <- c("theta[1]" = "b0", "theta[2]" = "gamma_F",
-                "theta[3]" = "beta_B", "sigma" = "sigma")
+                "theta[3]" = "beta_B", "sigma0" = "sigma0", "delta" = "delta")
 
 diag_table <- function(fit, run) {
   keep <- intersect(varnames(fit), names(par_labels))
@@ -701,12 +739,12 @@ rbind(diag_table(rw_M0, "M0 (main prior)"),
 
 ## traceplots + autocorrelation for the headline run (M1, main prior)
 op <- par(mfrow = c(2, 2), mar = c(4, 4, 2, 1))
-traceplot(rw_M1[, c("theta[1]", "theta[2]", "theta[3]", "sigma")])
+traceplot(rw_M1[, c("theta[2]", "theta[3]", "sigma0", "delta")])
 par(op)
 
 op <- par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
 acf(as.matrix(rw_M1[, "theta[2]"]), main = "ACF gamma_F (pooled chains)")
-acf(as.matrix(rw_M1[, "sigma"]),    main = "ACF sigma (pooled chains)")
+acf(as.matrix(rw_M1[, "delta"]),    main = "ACF delta (pooled chains)")
 par(op)
 ```
 
@@ -723,7 +761,7 @@ X1_plain <- cbind(intercept = 1, log_Fr = xF_plain, beam_draught = xB_plain)
 
 rw_M1_plain <- run_rwmh(
   X1_plain, prior_mean = c(0, 4, 0), prior_sd = c(10, 2, 2),
-  prop_sd = c(0.006, 0.095, 0.011)
+  base_sd_theta = c(0.02, 0.15, 0.02)
 )
 ```
 
@@ -778,7 +816,7 @@ post_summary <- function(fit, hull = TRUE) {
              (if (hull) d[, "theta[3]"] * mB else 0))
   out <- cbind(k = k, gamma_F = d[, "theta[2]"],
                beta_B = if (hull) d[, "theta[3]"] else NULL,
-               sigma = d[, "sigma"])
+               sigma0 = d[, "sigma0"], delta = d[, "delta"])
   t(apply(out, 2, function(z)
     c(mean = mean(z), sd = sd(z),
       `2.5%` = unname(quantile(z, .025)), `50%` = unname(quantile(z, .5)),
@@ -792,18 +830,19 @@ round(post_summary(rw_M1), 4)
 
 gF_draws <- as.matrix(rw_M1)[, "theta[2]"]
 bB_draws <- as.matrix(rw_M1)[, "theta[3]"]
-cat(sprintf("\nP(gamma_F > 4 | y) = %.4f   P(beta_B < 0 | y) = %.4f\n",
-            mean(gF_draws > 4), mean(bB_draws < 0)))
+dl_draws <- as.matrix(rw_M1)[, "delta"]
+cat(sprintf("\nP(gamma_F > 4 | y) = %.4f   P(beta_B < 0 | y) = %.4f   P(delta > 0 | y) = %.4f\n",
+            mean(gF_draws > 4), mean(bB_draws < 0), mean(dl_draws > 0)))
 cat("log-log (part 1) for comparison: beta_F =", round(bF, 3),
     ", 95% CI [", round(ci[1], 3), ",", round(ci[2], 3), "]\n")
 cat("log-log beam_draught 95% CI: [",
     paste(round(confint(fit)["beam_draught", ], 4), collapse = ", "), "]\n")
 ```
 
-```{r task3-gamma-plot, fig.width=10, fig.height=4.6}
-op <- par(mfrow = c(1, 2), mar = c(4.2, 4.2, 2, 1))
+```{r task3-gamma-plot, fig.width=13, fig.height=4.6}
+op <- par(mfrow = c(1, 3), mar = c(4.2, 4.2, 2, 1))
 
-## gamma_F (additive errors) vs beta_F (log-log, closed-form Student-t)
+## gamma_F (heteroscedastic M1) vs beta_F (log-log, closed-form Student-t)
 dg <- density(gF_draws)
 plot(dg, col = "firebrick", lwd = 2.4, xlim = c(3.9, max(dg$x)),
      main = "Froude exponent under the two error models",
@@ -813,7 +852,7 @@ curve(dt((x - bF) / se, df) / se, from = 4.3, to = 5.1,
 abline(v = 4, lty = 2)
 legend("top", bty = "n", lwd = c(2.4, 2.4, 1), col = c("firebrick", "navy", "black"),
        lty = c(1, 1, 2),
-       legend = c(expression(gamma[F]*" (additive errors, M1)"),
+       legend = c(expression(gamma[F]*" (heteroscedastic, M1)"),
                   expression(beta[F]*" (log-log, part 1)"),
                   expression(gamma[F] == 4)))
 
@@ -823,6 +862,16 @@ plot(density(bB_draws), col = "firebrick", lwd = 2.4,
      xlab = expression(beta[B]), ylab = "posterior density")
 abline(v = 0, lty = 2)
 abline(v = quantile(bB_draws, c(.025, .975)), col = "firebrick", lty = 3)
+
+## variance-growth exponent delta: 0 = homoscedastic, 1 = multiplicative
+plot(density(dl_draws), col = "firebrick", lwd = 2.4,
+     main = expression("Posterior of "*delta*" (variance growth)"),
+     xlab = expression(delta), ylab = "posterior density")
+abline(v = c(0, 1), col = c("navy", "grey50"), lty = c(2, 3), lwd = c(2, 1))
+legend("topright", bty = "n", lwd = c(2, 1), lty = c(2, 3),
+       col = c("navy", "grey50"),
+       legend = c(expression(delta == 0*" (homoscedastic)"),
+                  expression(delta == 1*" (multiplicative)")))
 par(op)
 ```
 
@@ -835,7 +884,7 @@ sens <- rbind(
 round(sens, 4)
 ```
 
-**Comparison with the log-log regression.** The heteroscedasticity correction changes the inference dramatically: the Froude exponent jumps from $\beta_F \approx 4.69$ (log-log) to $\gamma_F \approx 7.2$, and the two posteriors do not even overlap. Conversely, the hull covariate becomes more credible, not less: `beam_draught` now has a clearly negative coefficient with a 95% credible interval far from zero, whereas in the log-log model it was indistinguishable from zero. The $\gamma_F$ inference is insensitive to the prior (the vague and main priors agree to two decimals; even the informative $\mathcal N(4,0.5^2)$ prior moves the posterior mean only marginally), so the shift relative to part 1 is a property of the error model, not of the prior.
+**Comparison with the log-log regression.** Learning the variance changes the picture in two ways. First, the variance-growth exponent is **credibly positive but well below one**, $\delta\approx0.4$ with $P(\delta>0\mid y)=1$: the noise standard deviation grows like $\mu^{0.4}$, so the data are genuinely heteroscedastic, but the variance grows more slowly than the multiplicative ($\delta=1$) assumption implicit in the log-log model. Second, this intermediate variance growth pulls the Froude exponent **part-way back** from the constant-variance result: $\gamma_F$ drops from $\approx 7.2$ (the constant-variance additive fit of $\delta\equiv0$) to $\approx 6.4$, still clearly above both the log-log estimate $\beta_F\approx4.69$ and the textbook value $4$. The mechanism is leverage: with a constant variance the few large-resistance points dominate the likelihood and steepen the slope; once their variance is allowed to grow with the mean, they are appropriately down-weighted and $\gamma_F$ relaxes. The hull covariate stays credible: `beam_draught` keeps a negative coefficient whose 95% credible interval excludes zero ($P(\beta_B<0\mid y)\approx0.99$), unlike the log-log model where it was indistinguishable from zero. The $\gamma_F$ inference is insensitive to its prior (the vague and main priors agree closely; even the informative $\mathcal N(4,0.5^2)$ prior moves the posterior mean only marginally), so the shift relative to part 1 is a property of the error model, not of the prior.
 
 ### Model comparison: does beam_draught earn its place?
 
@@ -851,11 +900,12 @@ log_lik_from_fit <- function(fit, X, n_draws = 4000, seed = 2026) {
   d <- as.matrix(fit)
   set.seed(seed)
   d <- d[sample(nrow(d), n_draws), ]
-  th <- d[, paste0("theta[", seq_len(ncol(X)), "]"), drop = FALSE]
-  s2 <- d[, "sigma2"]
-  mu <- exp(th %*% t(X))                                    # n_draws x n
+  th  <- d[, paste0("theta[", seq_len(ncol(X)), "]"), drop = FALSE]
+  eta <- th %*% t(X)                                        # n_draws x n
+  mu  <- exp(eta)
+  sigma <- d[, "sigma0"] * exp(d[, "delta"] * eta)          # per-obs sd, recycles by draw
   dnorm(matrix(y_res, n_draws, n_obs, byrow = TRUE),
-        mu, sqrt(s2), log = TRUE)                           # sd recycles by draw
+        mu, sigma, log = TRUE)
 }
 
 ic_from_log_lik <- function(ll, loo_obj = loo(ll, r_eff = NA)) {
@@ -892,29 +942,71 @@ loo_compare(list(
 ))
 ```
 
+**Did learning the variance earn its keep?** The most direct test of the project requirement is to compare the same M1 mean structure under a *constant* variance ($\delta\equiv0$, the original part-3 model) against the *learned* variance ($\delta$ free). We refit the homoscedastic version by pinning $\delta=0$ and compare it to M1 by WAIC and PSIS-LOO.
+
+```{r task3-hetero-vs-homo, cache=TRUE}
+## same M1 mean and priors, but delta pinned to 0 (constant variance)
+rw_M1_homo <- run_rwmh(
+  X1, prior_mean = c(0, 4, 0), prior_sd = c(10, 2, 2),
+  base_sd_theta = c(0.006, 0.095, 0.011), fix_delta = 0
+)
+
+ll_M1_homo <- log_lik_from_fit(rw_M1_homo, X1)
+loo_M1_homo <- loo(ll_M1_homo, r_eff = NA)
+
+ic_var <- rbind(
+  "M1, constant variance (delta = 0)" = ic_from_log_lik(ll_M1_homo, loo_M1_homo),
+  "M1, learned variance  (delta free)" = ic_from_log_lik(ll_M1, loo_M1))
+round(cbind(ic_var,
+            dWAIC  = ic_var[, "WAIC"]  - min(ic_var[, "WAIC"]),
+            dLOOIC = ic_var[, "LOOIC"] - min(ic_var[, "LOOIC"])), 1)
+
+## Froude exponent under the two variance assumptions (same mean structure)
+cat(sprintf("gamma_F: constant variance = %.2f   learned variance = %.2f\n",
+            mean(as.matrix(rw_M1_homo)[, "theta[2]"]),
+            mean(as.matrix(rw_M1)[, "theta[2]"])))
+
+loo_compare(list(
+  "M1 constant variance" = loo_M1_homo,
+  "M1 learned variance"  = loo_M1
+))
+```
+
+The learned-variance model improves WAIC/LOOIC by a very large margin (hundreds of deviance units, many standard errors of `elpd_diff`), which is the quantitative confirmation that the constant-variance "correction" was inadequate and that the heteroscedasticity is real. Note also that the constant-variance refit reproduces $\gamma_F\approx7.2$, exactly the inflated exponent we set out to fix.
+
 ### Did the heteroscedasticity correction work? Residual diagnostics on the original scale
 
-Part 1 diagnosed the log-log model on the *log* scale; the fair test of the part-3 model is the same diagnostic on the **original** (resistance) scale, where its errors are assumed additive and homoscedastic, $\varepsilon_i\sim\mathcal N(0,\sigma^2)$ with a single constant $\sigma$. Using the posterior-mean fit $\hat\mu_i=\exp(\hat\theta^\top X_i)$ we form the raw residuals $y_i-\hat\mu_i$ and, because the model variance is constant, the standardized residuals $(y_i-\hat\mu_i)/\hat\sigma$. Under a correctly specified homoscedastic model the residual spread should be flat across fitted values (the scale-location curve horizontal) and roughly 95% of the standardized residuals should fall inside a $\pm 2$ band with no funnel against `Froude`.
+Part 1 diagnosed the log-log model on the *log* scale; the fair test of the part-3 model is the same diagnostic on the **original** (resistance) scale. Because the model variance is now non-constant, we standardize each residual by its *own* fitted standard deviation $\hat\sigma_i = \hat\sigma_0\,\hat\mu_i^{\hat\delta}$: using the posterior-mean fit $\hat\mu_i=\exp(\hat\theta^\top X_i)$ we form the raw residuals $y_i-\hat\mu_i$ and the standardized residuals $(y_i-\hat\mu_i)/\hat\sigma_i$. If the learned variance function is adequate, the standardized residuals should have roughly unit spread that is **flat** across fitted values (horizontal scale-location curve), with about 95% inside a $\pm 2$ band and no funnel against `Froude`. We also report the raw-residual spread by fitted-value tertile, which exhibits the heteroscedasticity the model is meant to absorb.
 
 ```{r task3-resid-diag, fig.width=10, fig.height=7.5}
-## posterior-mean fit on the original scale (theta, sigma are the constant-variance params)
+## posterior-mean fit and posterior-mean variance function (sigma_i = sigma0 * mu_i^delta)
 d_M1      <- as.matrix(rw_M1)
 th_hat    <- colMeans(d_M1[, paste0("theta[", seq_len(ncol(X1)), "]")])
-sigma_hat <- mean(d_M1[, "sigma"])
+sigma0_hat <- mean(d_M1[, "sigma0"])
+delta_hat  <- mean(d_M1[, "delta"])
 
 fitted_M1 <- as.vector(exp(X1 %*% th_hat))   # fitted resistance, original scale
+sigma_i   <- sigma0_hat * fitted_M1^delta_hat  # per-observation fitted sd
 resid_M1  <- y_res - fitted_M1               # raw residuals
-std_M1    <- resid_M1 / sigma_hat            # standardized (model sd is constant)
+std_M1    <- resid_M1 / sigma_i              # standardized by the learned variance
 
 ## quantify heteroscedasticity: residual SD within fitted-value tertiles
 ter <- cut(fitted_M1, quantile(fitted_M1, c(0, 1/3, 2/3, 1)),
            include.lowest = TRUE, labels = c("low", "mid", "high"))
 sd_by_tertile <- tapply(resid_M1, ter, sd)
-cat("residual SD by fitted-value tertile:\n"); print(round(sd_by_tertile, 3))
-cat(sprintf("high/low spread ratio = %.1f   (= 1 would be homoscedastic)\n",
+cat("RAW residual SD by fitted-value tertile (the heteroscedasticity to absorb):\n")
+print(round(sd_by_tertile, 3))
+cat(sprintf("  raw high/low spread ratio = %.1f\n",
             sd_by_tertile["high"] / sd_by_tertile["low"]))
-cat(sprintf("cor(|standardized residual|, fitted) = %.3f\n",
+
+## after standardizing by the learned sigma_i, the spread should be ~flat and ~1
+std_by_tertile <- tapply(std_M1, ter, sd)
+cat("STANDARDIZED residual SD by fitted-value tertile (should be ~1 and flat):\n")
+print(round(std_by_tertile, 3))
+cat(sprintf("  cor(|standardized residual|, fitted) = %.3f   (was strongly + under constant variance)\n",
             cor(abs(std_M1), fitted_M1)))
+cat(sprintf("  fraction of standardized residuals within +/-2 = %.3f\n",
+            mean(abs(std_M1) < 2)))
 
 op <- par(mfrow = c(2, 2), mar = c(4.2, 4.2, 2.2, 1))
 
@@ -943,9 +1035,9 @@ qqline(std_M1, col = "firebrick")
 par(op)
 ```
 
-The diagnostics show that the additive model is **not** homoscedastic on the original scale: the residual spread grows steeply with the fitted value (the scale-location curve slopes sharply upward and the high/low tertile spread ratio printed above is well above 1), and the standardized residuals fan out with `Froude`, neither (task 1 and 3) error model is uniformly correct, so the two are best judged by how well their predictive bands track the data across the whole Froude range.
+The diagnostics confirm that learning the variance corrects the heteroscedasticity. The **raw** residuals still fan out (their tertile spread ratio is well above 1) — this is the heteroscedasticity that defeated the constant-variance model. Once each residual is standardized by its own fitted $\hat\sigma_i=\hat\sigma_0\hat\mu_i^{\hat\delta}$, the funnel is largely removed: the scale-location curve is roughly flat, the standardized-residual spread is close to unity across fitted-value tertiles, the correlation between $|$standardized residual$|$ and the fitted value collapses from strongly positive (under a constant $\sigma$) to essentially zero, and about 95% of standardized residuals lie within the $\pm 2$ band. The fit is not flawless — a single power-law variance function cannot reproduce every feature of the spread — but it is a decisive improvement over the constant-variance model and is exactly the correction the project asks for.
 
-**Conclusion of part 3.** Under the corrected (additive) error model the hull covariate selected in part 2 is decisively supported: M1 beats M0 by a clear WAIC/PSIS-LOO margin, and $\beta_B$ is credibly negative, a wider beam relative to draught reduces residuary resistance per unit displacement at fixed Froude number. This sharpens part 2's verdict: the weak BAS evidence for `beam_draught` reflected the misspecified homoscedastic log-scale likelihood, not an absence of signal. The Froude-exponent inference, by contrast, is strongly error-model-dependent ($4.69$ vs $\approx 7.2$), which is exactly the heteroscedasticity impact.
+**Conclusion of part 3.** Modelling the variance as $\sigma_i=\sigma_0\mu_i^{\delta}$ and learning $\delta$ delivers a genuine heteroscedasticity correction: $\delta\approx0.4$ is credibly positive, the learned-variance model beats its constant-variance counterpart by a large WAIC/PSIS-LOO margin, and the original-scale residual diagnostics flatten out. This correction also reshapes the inference. The Froude exponent is strongly error-model-dependent — $\beta_F\approx4.69$ (log-log, $\delta$ effectively 1), $\gamma_F\approx7.2$ (additive constant variance, $\delta=0$), and $\gamma_F\approx6.4$ once $\delta$ is learned — so honestly reporting the variance assumption is essential. The hull covariate selected in part 2 is supported: M1 beats M0 on WAIC/PSIS-LOO and $\beta_B$ is credibly negative ($P(\beta_B<0\mid y)\approx0.99$), i.e. a wider beam relative to draught reduces residuary resistance per unit displacement at fixed Froude number — sharpening part 2's verdict that the weak BAS evidence for `beam_draught` reflected the misspecified homoscedastic likelihood, not an absence of signal.
 
 ## 4. Posterior predictive curves
 
@@ -954,9 +1046,11 @@ The last comparison should be made on the original resistance scale, because thi
 For the log-log model, the posterior predictive distribution is lognormal on the original scale: after drawing $(\beta,\sigma^2)$ from the reference-prior posterior, we simulate $$
 \log y_i^{\mathrm{rep}} \sim \mathcal N(x_i^\top\beta,\sigma^2),
 \qquad y_i^{\mathrm{rep}} = \exp(\log y_i^{\mathrm{rep}}).
-$$ For the heteroscedasticity-treated nonlinear model M1, the predictive distribution is additive normal on the original scale: $$
-y_i^{\mathrm{rep}} \sim \mathcal N\left(\exp\{b_0 + \gamma_F\widetilde{\log Fn}_i + \beta_B\widetilde{bd}_i\},\sigma^2\right).
-$$ The curves hold hull form fixed at a representative value: `beam_draught` is set to its sample median, while the other log-log hull covariates are set to their sample means. This isolates the Froude-resistance curve rather than mixing different hull geometries.
+$$ For the heteroscedasticity-treated nonlinear model M1, the predictive distribution is normal on the original scale but with a **mean-dependent** variance: $$
+y_i^{\mathrm{rep}} \sim \mathcal N\left(\mu_i,\ \sigma_i^2\right),\qquad
+\mu_i=\exp\{b_0 + \gamma_F\widetilde{\log Fn}_i + \beta_B\widetilde{bd}_i\},\qquad
+\sigma_i=\sigma_0\,\mu_i^{\delta},
+$$ so the predictive band automatically widens where the resistance (and hence its scatter) is larger and tightens near zero. The curves hold hull form fixed at a representative value: `beam_draught` is set to its sample median, while the other log-log hull covariates are set to their sample means. This isolates the Froude-resistance curve rather than mixing different hull geometries.
 
 ```{r task4-posterior-predictive, fig.width=9, fig.height=5.8}
 set.seed(42)
@@ -999,14 +1093,16 @@ draw_loglog_pred <- function(fit, newdata, n_draws = 5000) {
        upper = apply(yrep, 2, quantile, 0.975))
 }
 
-## Draw posterior predictive samples for the additive-error nonlinear M1 model.
+## Draw posterior predictive samples for the heteroscedastic nonlinear M1 model.
+## The observation sd is mean-dependent: sigma_i = sigma0 * mu_i^delta.
 draw_M1_pred <- function(fit, X_new, n_draws = 5000) {
   d <- as.matrix(fit)
   d <- d[sample(seq_len(nrow(d)), n_draws), ]
   theta <- d[, paste0("theta[", seq_len(ncol(X_new)), "]"), drop = FALSE]
-  sigma <- d[, "sigma"]
 
-  mu <- exp(theta %*% t(X_new))
+  eta <- theta %*% t(X_new)
+  mu  <- exp(eta)
+  sigma <- d[, "sigma0"] * exp(d[, "delta"] * eta)   # per-draw, per-point sd
   yrep <- mu + matrix(rnorm(length(mu), sd = sigma),
                       nrow = n_draws, ncol = nrow(X_new))
 
@@ -1060,7 +1156,7 @@ legend("topleft", bty = "n", lwd = c(2.5, 2.5, NA), pch = c(NA, NA, 16),
        pt.cex = c(NA, NA, 0.8),
        col = c("navy", "firebrick", rgb(0, 0, 0, 0.42)),
        legend = c("log-log predictive mean + 95% band",
-                  "additive nonlinear M1 predictive mean + 95% band",
+                  "heteroscedastic nonlinear M1 predictive mean + 95% band",
                   "observed data"))
 
 pdf("figures/posterior_predictive_curves.pdf", width = 9, height = 5.8)
@@ -1082,16 +1178,16 @@ legend("topleft", bty = "n", lwd = c(2.5, 2.5, NA), pch = c(NA, NA, 16),
        pt.cex = c(NA, NA, 0.8),
        col = c("navy", "firebrick", rgb(0, 0, 0, 0.42)),
        legend = c("log-log predictive mean + 95% band",
-                  "additive nonlinear M1 predictive mean + 95% band",
+                  "heteroscedastic nonlinear M1 predictive mean + 95% band",
                   "observed data"))
 dev.off()
 ```
 
 The plot shows the practical consequence of the two error models. The log-log fit keeps the Froude exponent near the physical fourth-power law and produces multiplicative uncertainty: its band is very tight near zero resistance and expands as resistance grows. This describes the low and middle Froude range well, but its mean curve is too flat at the highest speeds, where the data rise faster than the fitted $Fn^{4.69}$ law.
 
-The additive-error nonlinear fit reacts in the opposite direction. Because it assumes a roughly constant error standard deviation on the original scale, the high-resistance observations receive much more leverage than they had in the log-log likelihood. The fitted curve is therefore steeper ($\gamma_F\approx7.2$) and follows the high-Froude data better. Its predictive band is more nearly constant in absolute width, which is the intended heteroscedasticity correction relative to the log-log model, but this also makes the low-Froude band visibly too wide and can assign some probability to negative resistance before display clipping.
+The heteroscedastic nonlinear fit behaves differently. Its mean curve is steeper than the log-log law ($\gamma_F\approx6.4$) and follows the high-Froude data better. Crucially, because its variance is now learned ($\sigma_i=\sigma_0\mu_i^{\delta}$ with $\delta\approx0.4$), its predictive band is **no longer constant in width**: it widens with the fitted resistance and tightens toward zero at low Froude. This is the visible payoff of the heteroscedasticity correction — the band tracks the actual scatter of the data across the whole Froude range, instead of being uniformly too wide at low speeds (the defect of the constant-variance model) or collapsing to near zero (the log-log model). Because $\delta<1$, the low-Froude band does not shrink all the way to a point as the lognormal log-log band does, so a small amount of probability can still fall below zero before display clipping.
 
-**Conclusion of part 4.** Neither predictive family is perfect across the whole range. The log-log model gives the more natural positive, multiplicative uncertainty at low resistance, while the nonlinear additive model gives a better mean trend at high Froude and makes the selected hull covariate visible. The comparison therefore supports the main conclusion from part 3: inference on the Froude exponent and on `beam_draught` is strongly driven by the error model, so the posterior predictive curves are essential for interpreting the heteroscedasticity correction rather than relying only on coefficient summaries.
+**Conclusion of part 4.** The two predictive families differ mainly in how their uncertainty scales with resistance. The log-log model imposes strictly multiplicative ($\delta=1$) uncertainty, which is positive by construction but too tight at low speed and too flat in the mean at high speed; the heteroscedastic nonlinear model **estimates** the variance growth ($\delta\approx0.4$) and so adapts its band to the data, while also recovering the steeper high-Froude trend and making the selected hull covariate visible. The comparison reinforces part 3: inference on the Froude exponent and on `beam_draught` is strongly driven by the error model, and explicitly learning the variance — rather than fixing it — is what makes the predictive bands track the data across the whole Froude range.
 
 ## Train/test validation check
 
