@@ -1,0 +1,161 @@
+%=======================================================================
+%  Beamer presentation template
+%  Bayesian Learning & Monte Carlo Simulation -- Final Project 2026
+%  Yacht Hydrodynamic Resistance
+%
+%  Compile with:  pdflatex -> biber -> pdflatex -> pdflatex
+%  (e.g.  latexmk -pdf presentation.tex)
+%=======================================================================
+\documentclass[11pt,aspectratio=169]{beamer}
+
+%--------------------------------------------------------------- encoding
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+
+%--------------------------------------------------------------- maths
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{bm}
+\usepackage{mathtools}
+
+%--------------------------------------------------------------- graphics & tables
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multicol}
+\usepackage{xcolor}
+
+%--------------------------------------------------------------- bibliography
+\usepackage{csquotes}
+\usepackage[backend=biber,style=numeric,sorting=none,maxbibnames=3,giveninits]{biblatex}
+\addbibresource{bibliography.bib}
+
+%=======================================================================
+%  THEME
+%=======================================================================
+\usetheme{default}
+\usefonttheme{professionalfonts}
+\useinnertheme{circles}
+
+% ---- Politecnico di Milano palette ----------------------------------
+\definecolor{PoliBlue}{RGB}{0,46,93}     % deep institutional blue
+\definecolor{PoliCyan}{RGB}{0,110,160}   % accent
+\definecolor{PoliGray}{RGB}{90,90,90}
+\definecolor{PoliLight}{RGB}{236,242,247}
+
+\setbeamercolor{structure}{fg=PoliBlue}
+\setbeamercolor{title}{fg=PoliBlue}
+\setbeamercolor{frametitle}{fg=white,bg=PoliBlue}
+\setbeamercolor{section in toc}{fg=PoliBlue}
+\setbeamercolor{block title}{fg=white,bg=PoliCyan}
+\setbeamercolor{block body}{bg=PoliLight}
+\setbeamercolor{itemize item}{fg=PoliCyan}
+\setbeamercolor{itemize subitem}{fg=PoliCyan}
+\setbeamercolor{normal text}{fg=black!88}
+
+\setbeamertemplate{navigation symbols}{}    % hide nav clutter
+\setbeamertemplate{itemize items}[circle]
+\setbeamertemplate{section in toc}[sections numbered]
+\setbeamertemplate{caption}[numbered]
+\setbeamerfont{frametitle}{series=\bfseries}
+\setbeamerfont{title}{series=\bfseries}
+
+% ---- frame title: full-bleed colour bar with a thin accent rule -----
+% Side margin from the text block to the paper edge (symmetric by default).
+% \rlap gives the bar zero measured width, so the full bleed never triggers
+% an overfull-hbox warning.
+\newdimen\fullbleedoffset
+\setbeamertemplate{frametitle}{%
+  \fullbleedoffset=\dimexpr(\paperwidth-\textwidth)/2\relax
+  \nointerlineskip
+  \hspace*{-\fullbleedoffset}%
+  \rlap{%
+    \begin{beamercolorbox}[wd=\paperwidth,ht=2.6ex,dp=1.2ex,leftskip=\fullbleedoffset]{frametitle}%
+      \usebeamerfont{frametitle}\insertframetitle%
+    \end{beamercolorbox}}%
+  \par\nointerlineskip
+  \hspace*{-\fullbleedoffset}\rlap{\color{PoliCyan}\rule{\paperwidth}{1.2pt}}%
+}
+
+% ---- footline: author | short title | frame number ------------------
+\setbeamerfont{author in head/foot}{size=\scriptsize}
+\setbeamerfont{title in head/foot}{size=\scriptsize}
+\setbeamerfont{date in head/foot}{size=\scriptsize}
+\setbeamertemplate{footline}{%
+  \leavevmode\hbox{%
+    \begin{beamercolorbox}[wd=.24\paperwidth,ht=2.4ex,dp=1ex,leftskip=.6em]{author in head/foot}%
+      \usebeamerfont{author in head/foot}\insertshortauthor
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=.56\paperwidth,ht=2.4ex,dp=1ex,center]{title in head/foot}%
+      \usebeamerfont{title in head/foot}\insertshorttitle
+    \end{beamercolorbox}%
+    \begin{beamercolorbox}[wd=.20\paperwidth,ht=2.4ex,dp=1ex,rightskip=.6em]{date in head/foot}%
+      \hfill\usebeamerfont{date in head/foot}\insertframenumber\,/\,\inserttotalframenumber
+    \end{beamercolorbox}}%
+  \vskip0pt
+}
+\setbeamercolor{author in head/foot}{fg=white,bg=PoliBlue}
+\setbeamercolor{title in head/foot}{fg=PoliBlue,bg=PoliLight}
+\setbeamercolor{date in head/foot}{fg=white,bg=PoliBlue}
+
+% Footer hidden on all slides. Delete the line below to restore the
+% footer defined above (author | short title | slide number).
+\setbeamertemplate{footline}{}
+
+%--------------------------------------------------------------- handy shortcuts
+\newcommand{\Fn}{\ensuremath{F\!n}}
+\newcommand{\bF}{\ensuremath{\beta_F}}
+\newcommand{\R}{\textsf{R}}
+
+%=======================================================================
+%  TITLE METADATA
+%=======================================================================
+\title[Yacht Hydrodynamic Resistance]{Yacht Hydrodynamic Resistance}
+\subtitle{}                          % optional one-line subtitle
+\author[]{%
+  Ata Atasoy \quad Peng Rao \\[2pt]
+  H\"useyin Boran Ku\c{s}cu \quad Gonzalo Bengoa D\'iaz}
+\date{June 2026}
+
+%=======================================================================
+\begin{document}
+
+%---------------------------------------------------------------- TITLE
+{%
+\setbeamertemplate{footline}{}            % no footer on title page
+\begin{frame}[plain]
+	\centering
+	\vspace*{\fill}
+	\includegraphics[width=0.28\textwidth]{figures/logopolimi_mod.jpg}\\[0.5em]
+	{\color{PoliCyan}\rule{0.85\textwidth}{1pt}}\\[0.4em]
+	{\usebeamerfont{title}\usebeamercolor[fg]{title}\Large\inserttitle\par}
+	% {\small\insertsubtitle\par}    % uncomment if you set \subtitle{...}
+	{\color{PoliCyan}\rule{0.85\textwidth}{1pt}}\\[0.6em]
+	{\insertauthor\par}
+	\vspace{0.5em}
+	{\footnotesize\color{PoliGray}\insertinstitute\par}
+	\vspace{0.4em}
+	{\footnotesize\insertdate\par}
+	\vspace*{\fill}
+\end{frame}
+}
+
+%---------------------------------------------------------------- OUTLINE
+% Static agenda for the planned talk. Once you add content frames, declare
+% them with \section{...} and swap this list for \tableofcontents to have
+% the outline build itself automatically.
+\begin{frame}{Outline}
+	\setbeamertemplate{enumerate items}[default]
+	\vspace{0.5em}
+	\begin{enumerate}
+		\setlength\itemsep{0.6em}
+		\item Data and Problem
+		\item Log--log Regression
+		\item BAS / BMA Model Selection
+		\item Heteroscedasticity-Corrected Model
+		\item Posterior Predictive
+		\item Conclusions
+	\end{enumerate}
+\end{frame}
+
+\end{document}
