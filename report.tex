@@ -69,10 +69,7 @@ backend=biber]{biblatex}
 
 		\vspace{1cm}
 
-		\large{Authors: \\ \textbf{Peng Rao \\
-		Huseyin Boran Kuscu\\
-		Ata Atasoy \\
-		Gonzalo Bengoa Díaz }}
+		\large{Authors: \\ \textbf{Ata Atasoy, Peng Rao,  Hüseyin Boran Kuşcu, Gonzalo Bengoa Díaz}}
 	\end{center}
 
 \end{titlingpage}
@@ -139,12 +136,14 @@ Integrating out $\sigma^2$ gives a multivariate Student-$t$ posterior for $\bm{\
 	\beta_F \approx 4.69, \qquad
 	95\%\ \text{CI} = [4.60,\ 4.78],
 \]
-confirming the expected power-law behaviour $\mathrm{resistance}\sim Fn^{\,4}$ and verifying the project requirement $\hat\beta_F\approx 4$. \Cref{fig:loglog} (appendix) shows the log--log scatter with the posterior-mean line and its very tight $95\%$ credible band (left), and the posterior of $\beta_F$ (right): the whole posterior mass sits above the nominal value $4$ ($\Pr(\beta_F>4\mid\bm{y})\approx 1$), so the empirical exponent is best described as \emph{slightly steeper} than the textbook value of four.
+confirming the expected power-law behaviour $\mathrm{resistance}\sim Fn^{\,4}$ and verifying the project requirement $\hat\beta_F\approx 4$.
+
+\Cref{fig:loglog} (appendix) shows the log--log scatter with the posterior-mean line and its very tight $95\%$ credible band (left), and the posterior of $\beta_F$ (right): the whole posterior mass sits above the nominal value $4$ ($\Pr(\beta_F>4\mid\bm{y})\approx 1$), so the empirical exponent is best described as \emph{slightly steeper} than the textbook value of four.
 
 \subsection{Sensitivity check: independent informative priors}
 \label{sec:informative}
 
-The reference-prior analysis \emph{verifies} $\beta_F\approx4$ a posteriori; a complementary check \emph{encodes} the physics in the prior and asks how strongly the prior must insist on $4$ before it overrides the data. We replace Eq.~\eqref{eq:prior} with independent proper priors,
+The reference-prior analysis \emph{verifies} $\beta_F\approx4$ a posteriori; a complementary check \emph{encodes} the physics in the prior and asks how strongly the prior must insist on $4$ before it overrides the data. We replace Eq.~\eqref{eq:prior} with \textbf{independent proper priors},
 \begin{equation}
 	\beta_F \sim \mathcal{N}(4,\tau^2),
 	\qquad
@@ -153,7 +152,7 @@ The reference-prior analysis \emph{verifies} $\beta_F\approx4$ a posteriori; a c
 	\sigma^2 \sim \text{Inv-Gamma}(10^{-3},10^{-3}),
 	\label{eq:inf_prior}
 \end{equation}
-all components mutually independent. Since $\bm{\beta}$ and $\sigma^2$ are now independent a priori --- unlike in the conjugate Normal--Inverse-Gamma family, where $\operatorname{Var}(\bm{\beta}\mid\sigma^2)\propto\sigma^2$ --- the joint posterior is no longer available in closed form, but both full conditionals remain standard,
+all components mutually independent. Since $\bm{\beta}$ and $\sigma^2$ are now independent a priori, unlike in the conjugate Normal--Inverse-Gamma family, the joint posterior is no longer available in closed form, but both full conditionals remain standard,
 \begin{align}
 	\bm{\beta}\mid\sigma^{2},\bm{y} & \sim \mathcal{N}\!\big(\bm{V}(\bm{S}_0^{-1}\bm{m}_0+\bm{X}^{\!\top}\bm{y}/\sigma^{2}),\ \bm{V}\big),
 	\qquad \bm{V}=(\bm{S}_0^{-1}+\bm{X}^{\!\top}\bm{X}/\sigma^{2})^{-1}, \label{eq:fc_beta}                                                                            \\
@@ -161,9 +160,9 @@ all components mutually independent. Since $\bm{\beta}$ and $\sigma^2$ are now i
 \end{align}
 where $\bm{m}_0$ and $\bm{S}_0$ collect the prior means and variances of Eq.~\eqref{eq:inf_prior}. We therefore sample the posterior with a \textbf{Gibbs sampler} ($10\,000$ iterations, $2\,000$ burn-in; the effective sample size for $\beta_F$ exceeds $4\,000$ in every run) and sweep the prior strength $\tau\in\{0.05,0.1,0.2,0.5\}$.
 
-\Cref{tab:informative} (appendix) summarises the sweep; the posterior densities are overlaid in \cref{fig:informative} (appendix). A moderately informative prior ($\tau=0.5$) reproduces the reference result. Tightening the prior pulls the posterior mean towards $4$, but only the near-dogmatic $\tau=0.05$ (prior $95\%$ interval $\approx[3.9,\,4.1]$) drags it as far as $4.33$ --- and even then $\Pr(\beta_F>4\mid\bm{y})=1$.
+\Cref{tab:informative} (appendix) summarises the sweep; the posterior densities are overlaid in \cref{fig:informative} (appendix). A moderately informative prior ($\tau=0.5$) reproduces the reference result. Tightening the prior pulls the posterior mean towards $4$, but only the near-dogmatic $\tau=0.05$ (prior $95\%$ interval $\approx[3.9,\,4.1]$) drags it as far as $4.33$, and even then $\Pr(\beta_F>4\mid\bm{y})=1$.
 
-For any moderately diffuse physical prior ($\tau\ge0.1$) the likelihood dominates and the posterior mean stays in $4.56$--$4.68$. The conclusion that the empirical exponent is genuinely steeper than $Fn^{\,4}$ is therefore \textbf{robust to the prior}: it is a feature of the $n=308$ observations, not an artefact of the non-informative choice --- a transparent instance of prior--data conflict, in which an informative likelihood overwhelms all but an unreasonably confident prior.
+For any moderately diffuse physical prior ($\tau\ge0.1$) the likelihood dominates and the posterior mean stays in $4.56$--$4.68$. The conclusion that the empirical exponent is genuinely steeper than $Fn^{\,4}$ is therefore \textbf{robust to the prior}: it is a feature of the $n=308$ observations, not an artefact of the non-informative choice, a transparent instance of prior--data conflict, in which an informative likelihood overwhelms all but an unreasonably confident prior.
 
 \newpage
 
@@ -393,6 +392,76 @@ overly influential observations).\\
 First question is that was the BAS analysis true?
 
 Second question is was learned variance correct the heteroscedasticity.
+
+\section{Posterior Predictive Curves}
+\label{sec:posterior_predictive}
+
+The final comparison is made on the original resistance scale, because this is
+where the data are observed and where the two error assumptions imply visibly
+different uncertainty bands. For a fair comparison, both curves in
+\cref{fig:posterior_predictive_curves} are posterior predictive curves: each
+posterior draw includes uncertainty in the mean curve and one new
+observation-level error term. The observed yacht-resistance data are overlaid on
+the same scale.
+
+For the log--log regression, the posterior predictive distribution is lognormal
+after transforming back to resistance. After drawing $(\bm{\beta},\sigma^2)$ from
+the posterior, replicated values are generated as
+\[
+	\log y_i^{\mathrm{rep}} \sim
+	\mathcal{N}(x_i^\top\bm{\beta},\sigma^2),
+	\qquad
+	y_i^{\mathrm{rep}}=\exp(\log y_i^{\mathrm{rep}}).
+\]
+For the heteroscedastic nonlinear M1 model, replicated values are generated on
+the original scale with a mean-dependent standard deviation,
+\[
+	y_i^{\mathrm{rep}} \sim \mathcal{N}(\mu_i,\sigma_i^2),
+	\qquad
+	\mu_i=\exp\{b_0+\gamma_F\widetilde{\log Fn}_i+
+	\beta_B\widetilde{bd}_i\},
+	\qquad
+	\sigma_i=\sigma_0\mu_i^\delta .
+\]
+The displayed curves hold the hull form fixed at a representative value:
+\texttt{beam\_draught} is set to its sample median, while the other log--log
+hull covariates are set to their sample means. This isolates the
+Froude--resistance relationship instead of mixing different hull geometries.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.95\textwidth]{figures/posterior_predictive_curves.pdf}
+	\caption{Posterior predictive curves on the original resistance scale. The
+		blue band is the log--log model after back-transformation, and the red band
+		is the heteroscedastic nonlinear M1 model. Points are the observed yacht
+		resistance data.}
+	\label{fig:posterior_predictive_curves}
+\end{figure}
+
+The log--log fit keeps the Froude exponent close to the physical fourth-power
+law and produces multiplicative uncertainty. Its band is tight near zero
+resistance and expands as resistance grows, which describes the low and middle
+Froude range reasonably well. However, the mean curve is too flat at the highest
+Froude values, where the observed resistance rises faster than the fitted
+$Fn^{4.69}$ relationship.
+
+The heteroscedastic nonlinear fit behaves differently. Its mean curve is steeper
+($\gamma_F\approx6.4$) and follows the high-Froude observations more closely.
+Because its variance is learned through
+$\sigma_i=\sigma_0\mu_i^\delta$ with $\delta\approx0.4$, the predictive band is
+not forced to have constant width. It widens where resistance and scatter are
+larger and tightens toward the low-Froude region. This is the practical payoff of
+the heteroscedasticity treatment: the uncertainty band adapts to the data rather
+than imposing a single residual scale across the whole Froude range.
+
+Overall, the posterior predictive curves show that the two models differ mainly
+in how they scale uncertainty with resistance. The log--log model gives a useful
+positive predictive distribution, but it imposes multiplicative uncertainty and
+misses part of the high-speed curvature. The heteroscedastic nonlinear model
+learns the variance growth directly, tracks the observed data more closely, and
+supports the conclusion that the treatment of heteroscedasticity is essential
+for interpreting both the Froude exponent and the selected hull covariate
+\texttt{beam\_draught}.
 
 \clearpage
 \printbibliography[heading=bibintoc, title = {References}]
