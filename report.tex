@@ -69,7 +69,7 @@ backend=biber]{biblatex}
 
 		\vspace{1cm}
 
-		\large{Authors: \\ \textbf{Peng Rao}}
+		\large{Authors: \\ \textbf{Ata Atasoy, Peng Rao,  Hüseyin Boran Kuşcu, Gonzalo Bengoa Díaz}}
 	\end{center}
 
 \end{titlingpage}
@@ -136,12 +136,14 @@ Integrating out $\sigma^2$ gives a multivariate Student-$t$ posterior for $\bm{\
 	\beta_F \approx 4.69, \qquad
 	95\%\ \text{CI} = [4.60,\ 4.78],
 \]
-confirming the expected power-law behaviour $\mathrm{resistance}\sim Fn^{\,4}$ and verifying the project requirement $\hat\beta_F\approx 4$. \Cref{fig:loglog} (appendix) shows the log--log scatter with the posterior-mean line and its very tight $95\%$ credible band (left), and the posterior of $\beta_F$ (right): the whole posterior mass sits above the nominal value $4$ ($\Pr(\beta_F>4\mid\bm{y})\approx 1$), so the empirical exponent is best described as \emph{slightly steeper} than the textbook value of four.
+confirming the expected power-law behaviour $\mathrm{resistance}\sim Fn^{\,4}$ and verifying the project requirement $\hat\beta_F\approx 4$.
+
+\Cref{fig:loglog} (appendix) shows the log--log scatter with the posterior-mean line and its very tight $95\%$ credible band (left), and the posterior of $\beta_F$ (right): the whole posterior mass sits above the nominal value $4$ ($\Pr(\beta_F>4\mid\bm{y})\approx 1$), so the empirical exponent is best described as \emph{slightly steeper} than the textbook value of four.
 
 \subsection{Sensitivity check: independent informative priors}
 \label{sec:informative}
 
-The reference-prior analysis \emph{verifies} $\beta_F\approx4$ a posteriori; a complementary check \emph{encodes} the physics in the prior and asks how strongly the prior must insist on $4$ before it overrides the data. We replace Eq.~\eqref{eq:prior} with independent proper priors,
+The reference-prior analysis \emph{verifies} $\beta_F\approx4$ a posteriori; a complementary check \emph{encodes} the physics in the prior and asks how strongly the prior must insist on $4$ before it overrides the data. We replace Eq.~\eqref{eq:prior} with \textbf{independent proper priors},
 \begin{equation}
 	\beta_F \sim \mathcal{N}(4,\tau^2),
 	\qquad
@@ -150,7 +152,7 @@ The reference-prior analysis \emph{verifies} $\beta_F\approx4$ a posteriori; a c
 	\sigma^2 \sim \text{Inv-Gamma}(10^{-3},10^{-3}),
 	\label{eq:inf_prior}
 \end{equation}
-all components mutually independent. Since $\bm{\beta}$ and $\sigma^2$ are now independent a priori --- unlike in the conjugate Normal--Inverse-Gamma family, where $\operatorname{Var}(\bm{\beta}\mid\sigma^2)\propto\sigma^2$ --- the joint posterior is no longer available in closed form, but both full conditionals remain standard,
+all components mutually independent. Since $\bm{\beta}$ and $\sigma^2$ are now independent a priori, unlike in the conjugate Normal--Inverse-Gamma family, the joint posterior is no longer available in closed form, but both full conditionals remain standard,
 \begin{align}
 	\bm{\beta}\mid\sigma^{2},\bm{y} & \sim \mathcal{N}\!\big(\bm{V}(\bm{S}_0^{-1}\bm{m}_0+\bm{X}^{\!\top}\bm{y}/\sigma^{2}),\ \bm{V}\big),
 	\qquad \bm{V}=(\bm{S}_0^{-1}+\bm{X}^{\!\top}\bm{X}/\sigma^{2})^{-1}, \label{eq:fc_beta}                                                                            \\
@@ -158,9 +160,9 @@ all components mutually independent. Since $\bm{\beta}$ and $\sigma^2$ are now i
 \end{align}
 where $\bm{m}_0$ and $\bm{S}_0$ collect the prior means and variances of Eq.~\eqref{eq:inf_prior}. We therefore sample the posterior with a \textbf{Gibbs sampler} ($10\,000$ iterations, $2\,000$ burn-in; the effective sample size for $\beta_F$ exceeds $4\,000$ in every run) and sweep the prior strength $\tau\in\{0.05,0.1,0.2,0.5\}$.
 
-\Cref{tab:informative} (appendix) summarises the sweep; the posterior densities are overlaid in \cref{fig:informative} (appendix). A moderately informative prior ($\tau=0.5$) reproduces the reference result. Tightening the prior pulls the posterior mean towards $4$, but only the near-dogmatic $\tau=0.05$ (prior $95\%$ interval $\approx[3.9,\,4.1]$) drags it as far as $4.33$ --- and even then $\Pr(\beta_F>4\mid\bm{y})=1$.
+\Cref{tab:informative} (appendix) summarises the sweep; the posterior densities are overlaid in \cref{fig:informative} (appendix). A moderately informative prior ($\tau=0.5$) reproduces the reference result. Tightening the prior pulls the posterior mean towards $4$, but only the near-dogmatic $\tau=0.05$ (prior $95\%$ interval $\approx[3.9,\,4.1]$) drags it as far as $4.33$, and even then $\Pr(\beta_F>4\mid\bm{y})=1$.
 
-For any moderately diffuse physical prior ($\tau\ge0.1$) the likelihood dominates and the posterior mean stays in $4.56$--$4.68$. The conclusion that the empirical exponent is genuinely steeper than $Fn^{\,4}$ is therefore \textbf{robust to the prior}: it is a feature of the $n=308$ observations, not an artefact of the non-informative choice --- a transparent instance of prior--data conflict, in which an informative likelihood overwhelms all but an unreasonably confident prior.
+For any moderately diffuse physical prior ($\tau\ge0.1$) the likelihood dominates and the posterior mean stays in $4.56$--$4.68$. The conclusion that the empirical exponent is genuinely steeper than $Fn^{\,4}$ is therefore \textbf{robust to the prior}: it is a feature of the $n=308$ observations, not an artefact of the non-informative choice, a transparent instance of prior--data conflict, in which an informative likelihood overwhelms all but an unreasonably confident prior.
 
 \newpage
 
