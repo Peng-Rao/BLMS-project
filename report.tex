@@ -228,78 +228,75 @@ instead of relying on one full regression model.
 
 \section{Heteroscedasticity-Corrected Nonlinear Model}
 
-\section{Model Comparison}
+\section{Posterior Predictive Curves}
+\label{sec:posterior_predictive}
 
-We compare the candidate models using two complementary criteria. First, WAIC
-and PSIS--LOO compare expected out-of-sample predictive accuracy from the
-pointwise log-likelihood; lower WAIC/LOOIC is better. Second, posterior
-predictive coverage checks whether the predictive bands actually contain the
-observed data with reasonable width.
+The final comparison is made on the original resistance scale, because this is
+where the data are observed and where the two error assumptions imply visibly
+different uncertainty bands. For a fair comparison, both curves in
+\cref{fig:posterior_predictive_curves} are posterior predictive curves: each
+posterior draw includes uncertainty in the mean curve and one new
+observation-level error term. The observed yacht-resistance data are overlaid on
+the same scale.
 
-This is a Bayesian model comparison because all quantities are computed from the
-posterior distribution, not from a single point estimate. For each candidate
-model we use MCMC draws of the parameters to evaluate the pointwise posterior
-log-likelihood $\log p(y_i\mid\theta^{(s)})$. WAIC estimates predictive accuracy
-by combining the log posterior predictive density with a penalty for the
-effective number of parameters, while PSIS--LOO approximates leave-one-out
-cross-validation using the same posterior draws. The posterior predictive
-coverage is also Bayesian: the bands are obtained by simulating replicated data
-$y^{\mathrm{rep}}$ from the posterior predictive distribution
-$p(y^{\mathrm{rep}}\mid y)$ and then checking how well those predictive
-intervals agree with the observed yacht-resistance data.
+For the log--log regression, the posterior predictive distribution is lognormal
+after transforming back to resistance. After drawing $(\bm{\beta},\sigma^2)$ from
+the posterior, replicated values are generated as
+\[
+	\log y_i^{\mathrm{rep}} \sim
+	\mathcal{N}(x_i^\top\bm{\beta},\sigma^2),
+	\qquad
+	y_i^{\mathrm{rep}}=\exp(\log y_i^{\mathrm{rep}}).
+\]
+For the heteroscedastic nonlinear M1 model, replicated values are generated on
+the original scale with a mean-dependent standard deviation,
+\[
+	y_i^{\mathrm{rep}} \sim \mathcal{N}(\mu_i,\sigma_i^2),
+	\qquad
+	\mu_i=\exp\{b_0+\gamma_F\widetilde{\log Fn}_i+
+	\beta_B\widetilde{bd}_i\},
+	\qquad
+	\sigma_i=\sigma_0\mu_i^\delta .
+\]
+The displayed curves hold the hull form fixed at a representative value:
+\texttt{beam\_draught} is set to its sample median, while the other log--log
+hull covariates are set to their sample means. This isolates the
+Froude--resistance relationship instead of mixing different hull geometries.
 
-The first comparison asks whether the hull covariate selected by BAS/BMA,
-\texttt{beam\_draught}, improves the nonlinear model once Froude is already in
-the mean. The Froude-only nonlinear model (M0) gives WAIC $=847.8$ and LOOIC
-$=847.8$, whereas the model with Froude and \texttt{beam\_draught} (M1) gives
-WAIC $=842.4$ and LOOIC $=842.5$. Thus M1 is better by about $5.4$ WAIC units
-and $5.3$ LOOIC units. The PSIS--LOO comparison gives
-$\mathrm{elpd}_{\mathrm{diff}}=-2.7$ for M0 relative to M1, with standard error
-$3.2$, so the improvement is moderate rather than overwhelming. Still, the
-direction agrees with the posterior coefficient result: adding
-\texttt{beam\_draught} improves the model and the coefficient is negative.
-
-The second comparison is more decisive. Keeping the same M1 mean structure, we
-compare the constant-variance additive model with the learned-variance model,
-where the residual scale is allowed to depend on the fitted mean. The
-constant-variance model gives WAIC $=1166.8$ and LOOIC $=1167.2$, while the
-learned-variance model gives WAIC $=842.4$ and LOOIC $=842.5$. The differences,
-$\Delta\mathrm{WAIC}=324.3$ and $\Delta\mathrm{LOOIC}=324.7$, are very large.
-PSIS--LOO gives an elpd difference of $-162.3$ for the constant-variance model
-relative to the learned-variance model, with standard error $21.7$. This is
-strong evidence that modelling the heteroscedasticity is necessary.
-
-\begin{table}[H]
+\begin{figure}[H]
 	\centering
-	\caption{Information-criterion comparison of the nonlinear models. Lower WAIC
-		and LOOIC are better.}
-	\label{tab:model_comparison}
-	\begin{tabular}{l r r r r}
-		\toprule
-		\textbf{Model} & \textbf{WAIC} & \textbf{LOOIC} & \textbf{$\Delta$WAIC} & \textbf{$\Delta$LOOIC} \\
-		\midrule
-		M0: Froude only                         & $847.8$  & $847.8$  & $5.4$   & $5.3$   \\
-		M1: Froude + \texttt{beam\_draught}     & $842.4$  & $842.5$  & $0.0$   & $0.0$   \\
-		M1: constant variance                   & $1166.8$ & $1167.2$ & $324.3$ & $324.7$ \\
-		M1: learned variance                    & $842.4$  & $842.5$  & $0.0$   & $0.0$   \\
-		\bottomrule
-	\end{tabular}
-\end{table}
+	\includegraphics[width=0.95\textwidth]{figures/posterior_predictive_curves.pdf}
+	\caption{Posterior predictive curves on the original resistance scale. The
+		blue band is the log--log model after back-transformation, and the red band
+		is the heteroscedastic nonlinear M1 model. Points are the observed yacht
+		resistance data.}
+	\label{fig:posterior_predictive_curves}
+\end{figure}
 
-The posterior predictive results tell the same story. The constant-variance M1
-model covers about $94.5\%$ of the observations with an average band width of
-$6.179$. The learned-variance model covers about $98.4\%$ of the observations
-with a narrower average band width of $5.535$. Therefore, the learned-variance
-model is not merely wider; it allocates uncertainty more efficiently, narrowing
-the band where low-Froude observations are tightly concentrated and widening it
-where high-Froude observations are more dispersed.
+The log--log fit keeps the Froude exponent close to the physical fourth-power
+law and produces multiplicative uncertainty. Its band is tight near zero
+resistance and expands as resistance grows, which describes the low and middle
+Froude range reasonably well. However, the mean curve is too flat at the highest
+Froude values, where the observed resistance rises faster than the fitted
+$Fn^{4.69}$ relationship.
 
-Overall, the best model is the nonlinear M1 model with \texttt{beam\_draught}
-and learned heteroscedastic variance. It gives the strongest predictive
-performance by WAIC/PSIS--LOO, better calibrated posterior predictive bands, and
-a physically interpretable conclusion: Froude remains the dominant driver, while
-\texttt{beam\_draught} contributes secondary hull-geometry information once the
-variance structure is modelled correctly.
+The heteroscedastic nonlinear fit behaves differently. Its mean curve is steeper
+($\gamma_F\approx6.4$) and follows the high-Froude observations more closely.
+Because its variance is learned through
+$\sigma_i=\sigma_0\mu_i^\delta$ with $\delta\approx0.4$, the predictive band is
+not forced to have constant width. It widens where resistance and scatter are
+larger and tightens toward the low-Froude region. This is the practical payoff of
+the heteroscedasticity treatment: the uncertainty band adapts to the data rather
+than imposing a single residual scale across the whole Froude range.
+
+Overall, the posterior predictive curves show that the two models differ mainly
+in how they scale uncertainty with resistance. The log--log model gives a useful
+positive predictive distribution, but it imposes multiplicative uncertainty and
+misses part of the high-speed curvature. The heteroscedastic nonlinear model
+learns the variance growth directly, tracks the observed data more closely, and
+supports the conclusion that the treatment of heteroscedasticity is essential
+for interpreting both the Froude exponent and the selected hull covariate
+\texttt{beam\_draught}.
 
 \clearpage
 \printbibliography[heading=bibintoc, title = {References}]
