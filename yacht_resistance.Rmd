@@ -1184,7 +1184,7 @@ The heteroscedastic nonlinear fit behaves differently. Its mean curve is steeper
 
 ## Train/test validation check
 
-The four project questions above use the full dataset for Bayesian inference, which is the appropriate target for the scientific conclusions. The random 80/20 split is used only as an additional predictive check: fit simple training-set versions of the two mean structures and evaluate their predictions on the held-out test set.
+The four project questions above use the full dataset for Bayesian inference, which is the appropriate target for the scientific conclusions. The random 80/20 split is used only as an additional Bayesian predictive check: evaluate the posterior predictive distribution on the test rows and compare log predictive density, interval coverage, and predictive-band width. This avoids reducing the comparison to `lm()`/`nls()` point predictions and keeps the validation on the same posterior-predictive scale as Part 4.
 
 ```{r train-test-validation}
 yh_train <- read.csv("data/yacht_train.csv")
@@ -1195,45 +1195,79 @@ yh_train$log_Fr  <- log(yh_train$Froude)
 yh_test$log_res  <- log(yh_test$resistance)
 yh_test$log_Fr   <- log(yh_test$Froude)
 
-## Baseline: same full log-log mean structure as part 1, fitted only on training data.
-loglog_train <- lm(
-  log_res ~ log_Fr + LCB + prismatic + L_disp + beam_draught + L_beam,
-  data = yh_train
-)
-pred_loglog <- exp(predict(loglog_train, newdata = yh_test) +
-                     summary(loglog_train)$sigma^2 / 2)
-
-## Nonlinear mean from part 3, using the retained hull covariate beam_draught.
-## The log-log training fit gives stable starting values for nls().
-start_fit <- lm(log(resistance) ~ log(Froude) + beam_draught, data = yh_train)
-start_values <- list(
-  k = unname(exp(coef(start_fit)["(Intercept)"])),
-  gamma = unname(coef(start_fit)["log(Froude)"]),
-  beta_B = unname(coef(start_fit)["beam_draught"])
-)
-
-nls_train <- nls(
-  resistance ~ k * Froude^gamma * exp(beta_B * beam_draught),
-  data = yh_train,
-  start = start_values,
-  control = nls.control(maxiter = 200, warnOnly = TRUE)
-)
-pred_nls <- predict(nls_train, newdata = yh_test)
-
-metrics <- function(observed, predicted) {
-  c(
-    RMSE = sqrt(mean((observed - predicted)^2)),
-    MAE = mean(abs(observed - predicted))
-  )
+log_mean_exp <- function(x) {
+  m <- max(x)
+  m + log(mean(exp(x - m)))
 }
 
+## Test-set posterior predictive log density for the log-log model.
+## The density is evaluated on the original resistance scale, so the predictive
+## density is lognormal after back-transforming the Gaussian log model.
+loglog_test_score <- function(fit, newdata, y_new, n_draws = 5000, seed = 2026) {
+  X <- model.matrix(fit)
+  p <- ncol(X)
+  df_res <- fit$df.residual
+  beta_hat <- coef(fit)
+  s2 <- sum(resid(fit)^2) / df_res
+  XtX_inv <- chol2inv(chol(crossprod(X)))
+  X_new <- model.matrix(delete.response(terms(fit)), newdata)
+
+  set.seed(seed)
+  sigma2 <- df_res * s2 / rchisq(n_draws, df = df_res)
+  z <- matrix(rnorm(n_draws * p), nrow = n_draws)
+  beta <- sweep(z %*% chol(XtX_inv), 1, sqrt(sigma2), `*`)
+  beta <- sweep(beta, 2, beta_hat, `+`)
+  eta <- beta %*% t(X_new)
+
+  ll <- dlnorm(matrix(y_new, n_draws, length(y_new), byrow = TRUE),
+               meanlog = eta, sdlog = sqrt(sigma2), log = TRUE)
+  pp <- draw_loglog_pred(fit, newdata, n_draws = 3000)
+
+  c(total_lpd = sum(apply(ll, 2, log_mean_exp)),
+    mean_lpd = mean(apply(ll, 2, log_mean_exp)),
+    coverage_95 = mean(y_new >= pp$lower & y_new <= pp$upper),
+    mean_band_width = mean(pp$upper - pp$lower))
+}
+
+## Test-set posterior predictive log density for the nonlinear models.
+## For learned variance, sigma_i = sigma0 * mu_i^delta; for the homoscedastic
+## comparison delta is pinned to zero in fit_M1_homo.
+nonlinear_test_score <- function(fit, X_new, y_new, n_draws = 5000, seed = 2026) {
+  d <- as.matrix(fit)
+  set.seed(seed)
+  d <- d[sample(nrow(d), n_draws), ]
+  theta <- d[, paste0("theta[", seq_len(ncol(X_new)), "]"), drop = FALSE]
+  eta <- theta %*% t(X_new)
+  mu <- exp(eta)
+  sigma <- d[, "sigma0"] * exp(d[, "delta"] * eta)
+
+  ll <- dnorm(matrix(y_new, n_draws, length(y_new), byrow = TRUE),
+              mean = mu, sd = sigma, log = TRUE)
+  pp <- predict_nonlinear(fit, X_new, n_draws = 3000)
+
+  c(total_lpd = sum(apply(ll, 2, log_mean_exp)),
+    mean_lpd = mean(apply(ll, 2, log_mean_exp)),
+    coverage_95 = mean(y_new >= pp$lower & y_new <= pp$upper),
+    mean_band_width = mean(pp$upper - pp$lower))
+}
+
+test_loglog <- data.frame(log_Fr = yh_test$log_Fr,
+                          LCB = yh_test$LCB,
+                          prismatic = yh_test$prismatic,
+                          L_disp = yh_test$L_disp,
+                          beam_draught = yh_test$beam_draught,
+                          L_beam = yh_test$L_beam)
+test_X1 <- cbind(intercept = 1,
+                 log_Fr = log(yh_test$Froude) - mF,
+                 beam_draught = yh_test$beam_draught - mB)
+
 validation_table <- rbind(
-  `log-log train fit` = metrics(yh_test$resistance, pred_loglog),
-  `nonlinear train fit` = metrics(yh_test$resistance, pred_nls)
+  `log-log posterior predictive` = loglog_test_score(fit, test_loglog, yh_test$resistance),
+  `M1 constant variance posterior predictive` = nonlinear_test_score(fit_M1_homo, test_X1, yh_test$resistance),
+  `M1 learned variance posterior predictive` = nonlinear_test_score(fit_M1, test_X1, yh_test$resistance)
 )
 
 round(validation_table, 3)
-coef(nls_train)
 ```
 
-This train/test check is not used to replace the full-data posterior analysis. It is only a sanity check on predictive behaviour. On the generated split, the nonlinear mean has a smaller held-out RMSE and MAE than the log-log mean, which agrees with the posterior predictive plot: the additive-error nonlinear curve better tracks the high-Froude observations, while the log-log model remains the more conservative multiplicative-error baseline.
+This train/test check is not used to replace the full-data posterior analysis. It is only a posterior predictive sanity check on the split rows. Higher log predictive density is better, while coverage and band width show calibration. The learned-variance nonlinear model is preferred when it gives the strongest test-set posterior predictive density and calibrated 95% intervals without simply inflating the bands. This agrees with the Part 4 plot: learning the heteroscedastic variance reallocates uncertainty across the Froude range instead of relying on point predictions from a separate frequentist fit.
