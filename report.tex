@@ -69,7 +69,10 @@ backend=biber]{biblatex}
 
 		\vspace{1cm}
 
-		\large{Authors: \\ \textbf{Peng Rao}}
+		\large{Authors: \\ \textbf{Peng Rao \\
+		Huseyin Boran Kuscu\\
+		Ata Atasoy \\
+		Gonzalo Bengoa Díaz }}
 	\end{center}
 
 \end{titlingpage}
@@ -225,6 +228,171 @@ instead of relying on one full regression model.
 \newpage
 
 \section{Heteroscedasticity-Corrected Nonlinear Model}
+
+
+\subsection{Nonlinear model}
+
+Following the BAS/BMA analysis, the only hull-form variable carried forward was the beam-draught ratio with posterior inclusion probability was about $0.565$, so the evidence was moderate rather than strong. 
+Therefore, we fitted both a Froude-only model \textbf{M0} and a model including beam-draught \textbf{M1}, but the main heteroscedastic nonlinear model was
+\[
+Y_i \mid \theta,\sigma_0,\delta
+\sim
+N(\mu_i,\sigma_i^2),
+\]
+where $Y_i$ is the observed residuary resistance and
+\[
+\mu_i
+=
+k\,\mathrm{Froude}_i^{\gamma_F}
+\exp\{\beta_B\,\mathrm{bd}_i\}.
+\]
+
+where $\mathrm{bd}_i$ is the beam--draught ratio (\texttt{beam\_draught}), and
+$k>0$ is the multiplicative constant of the power law. 
+To model heteroscedasticity, we did not assume a constant variance. Instead, we used
+\[
+\sigma_i = \sigma_0 \mu_i^\delta .
+\]
+The parameter $\delta$ controls how fast the standard deviation grows with the fitted mean. 
+If $\delta=0$, then the model reduces to a homoscedastic additive-error model on the original scale. 
+If $\delta=1$, then the standard deviation is proportional to the mean, which is close to the multiplicative-error interpretation of the log-log model. 
+
+
+The parameters to be estimated are the constant $k$, the Froude exponent $\gamma_F$, the
+hull-coefficient $\beta_B$, the baseline noise level $\sigma_0$, and the
+\textbf{variance-growth exponent} $\delta$. We have include the test of heteroscedasticity correction
+by comparing the fixed version of the variance ($\delta=0$) and version with learned variance with WAIC and PSIS-LOO tests.
+
+For computation, the mean was rewritten in exponential form:
+\[
+\mu_i
+=
+\exp\{\log k+\gamma_F \log(\mathrm{Froude}_i)+\beta_B \mathrm{bd}_i\}.
+\]
+In the implementation we centered $\log(\mathrm{Froude})$ and beam-draught before fitting the model. 
+Writing
+$\log\mathrm{Froude}_i = m_F + \tilde{x}_{F,i}$ and
+$\mathrm{bd}_i = m_B + \tilde{x}_{B,i}$ and absorbing the constants into a single
+intercept $b_0$,
+\begin{equation}
+  b_0 = \log k + \gamma_F m_F + \beta_B m_B,
+  \label{eq:t3-b0}
+\end{equation}
+\begin{equation}
+  \mu_i
+  = \exp\!\big\{b_0 + \gamma_F\,\tilde{x}_{F,i} + \beta_B\,\tilde{x}_{B,i}\big\}.
+  \label{eq:t3-centred}
+\end{equation}
+Centring relabels the intercept but leaves the slopes $\gamma_F$ and $\beta_B$
+untouched, so it does not change the inference on the quantities of physical
+interest. After sampling, the physical constant is recovered draw by draw from
+\begin{equation}
+  k = \exp\!\big\{b_0 - \gamma_F m_F - \beta_B m_B\big\}.
+  \label{eq:t3-k}
+\end{equation}
+
+
+
+
+\subsection{Prior distributions}
+\label{sec:t3-prior}
+
+All priors are weakly informative and mutually independent. For the mean
+parameters,
+\begin{equation}
+  b_0 \sim \mathcal{N}(0,10^2),
+  \qquad
+  \gamma_F \sim \mathcal{N}(4,2^2),
+  \qquad
+  \beta_B \sim \mathcal{N}(0,2^2).
+  \label{eq:t3-prior-mean}
+\end{equation}
+The prior on $\gamma_F$ is centred at the physical value $4$. For the variance function,
+\begin{equation}
+  \log\sigma_0 \sim \mathcal{N}(0,10^2),
+  \qquad
+  \delta \sim \mathcal{N}(0,1^2).
+  \label{eq:t3-prior-var}
+\end{equation}
+The prior on $\delta$ is centred at $0$, i.e.\ at homoscedasticity, precisely so
+that any evidence of variance growth comes from the data and not from the prior.
+As a sensitivity check on the headline quantity, the $\gamma_F$ prior is also
+replaced by a vague $\mathcal{N}(0,10^2)$ and by an informative
+$\mathcal{N}(4,0.5^2)$.
+
+\subsection{Posterior sampling algorithm}
+\label{sec:t3-algorithm}
+
+Unlike log-log linear model, the posterior distribution is not availiable in closed form.
+The likelihood contains a nonlinear exponential mean, and the variance also depends on the mean through $\sigma_i=\sigma_0\mu_i^\delta$. Because of this non-conjugacy, we used MCMC in JAGS.
+
+For this model JAGS automatically assigned the univariate slice sampler to the continuous parameters.
+
+We run four independent chains, started from dispersed values of $\gamma_F$ ( $3,6,5,4$) and of $\delta$ (values $0,1,0.5,1.2$)
+Each chain uses an adaptation phase, a burn-in that is discarded, and a thinned sampling phase.
+If chains launched from very different points all settle on the same
+distribution, that is good evidence the sampler has reached the posterior rather
+than a starting-value-dependent region.
+
+\subsection{Convergence diagnostics}
+\label{sec:t3-convergence}
+
+Before doing any intrepretion from posterior distribution or sampling from posterior, we should check wheter our proposed model has converged.
+We checked the converges of the non-linear with several different methods. First we check Gelman--Rubin statistic $\hat{R}$. This compares the variance
+between the dispersed chains to the variance within each chain. If the chains have all converged to the same distribution the two variances agree.
+Secondly, we check Effective sample size (ESS). Successive MCMC draws are autocorrelated, so $N$ kept draws carry less information than $N$ independent ones. The ESS estimates the equivalent number of independent draws; we want it in the thousands so that posterior means and quantiles are estimated with little Monte-Carlo error.
+Trace plots, for each parameter the four chains should look like
+        stationary noise fluctuating around a common, fixed level, with the
+        chains overlapping rather than drifting or sitting at separate values.
+Finally, Autocorrelation function (ACF), For each parameter the autocorrelation of the chain should decay to zero within a few lags.
+
+\begin{table}[ht]
+\centering
+\caption{Convergence diagnostics for the heteroscedastic nonlinear model M1 under the main prior.}
+\label{tab:m1-convergence}
+\begin{tabular}{lcc}
+\hline
+Parameter & $\hat{R}$ & Effective sample size \\
+\hline
+$\delta$   & 1.0000 & 2208  \\
+$\sigma_0$ & 1.0000 & 3284  \\
+$b_0$      & 1.0002 & 4409  \\
+$\gamma_F$ & 0.9999 & 2182  \\
+$\beta_B$  & 1.0003 & 13012 \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+	\centering
+	\subfloat[Trace plots]{%
+		\includegraphics[width=0.49\textwidth]{figures/task3-diagnostics-1.pdf}}
+	\hfill
+	\subfloat[Posterior of $\beta_F$.]{%
+		\includegraphics[width=0.49\textwidth]{figures/task3-diagnostics-2.pdf}}
+	\caption{Trace plots of the variables, each color represents a chain.}
+	\label{fig:convergence}
+\end{figure}
+
+Table~\ref{tab:m1-convergence} reports the convergence diagnostics for the main M1 run. All Gelman--Rubin statistics are essentially equal to one, indicating that the independently initialized chains are sampling from the same posterior distribution. The effective sample sizes are also sufficiently large for posterior inference, especially for $\beta_B$.
+Figure~\ref{fig:convergence} shows that different chains overlap on the plot and look stationary noices, it shows that every chained mixed with the given sampling numbers, and ACF decays to zero in few lags.
+
+
+\subsection{Posterior analysis}
+\label{sec:t3-posterior}
+
+\subsection{Model comparison}
+\label{sec:t3-modelcomp}
+
+We use two questions to validate the modelling choices, both answered with
+WAIC and PSIS-LOO computed from the pointwise log-likelihood
+$\log p(y_i\mid\bm{\theta}^{(s)})$ of the MCMC draws (lower WAIC/LOOIC is
+better; PSIS-LOO additionally returns Pareto-$\hat k$ diagnostics that warn of
+overly influential observations).\\
+
+First question is that was the BAS analysis true?
+
+Second question is was learned variance correct the heteroscedasticity.
 
 \clearpage
 \printbibliography[heading=bibintoc, title = {References}]
