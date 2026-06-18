@@ -294,12 +294,14 @@ explicitly.
 
 \subsection{Nonlinear model}
 
-Following the BAS/BMA analysis, the only hull-form variable carried forward was the beam-draught ratio with posterior inclusion probability was about $0.565$, so the evidence was moderate rather than strong. 
-Therefore, we fitted both a Froude-only model \textbf{M0} and a model including beam-draught \textbf{M1}, but the main heteroscedastic nonlinear model was
+Following the BAS/BMA analysis, the only hull-form variable carried forward was the beam-draught ratio, whose posterior inclusion probability was about $0.565$, so the evidence was moderate rather than strong.
+Therefore, we fitted both a Froude-only model \textbf{M0} and a model including beam-draught \textbf{M1}. Because the residuary resistance is strictly positive, the main heteroscedastic nonlinear model uses a \textbf{Gamma} likelihood, parametrized through its mean and variance,
 \[
 Y_i \mid \theta,\sigma_0,\delta
 \sim
-N(\mu_i,\sigma_i^2),
+\mathrm{Gamma}\!\Big(\text{shape}_i=\tfrac{\mu_i^2}{\sigma_i^2},\ \text{rate}_i=\tfrac{\mu_i}{\sigma_i^2}\Big),
+\qquad
+\mathbb{E}(Y_i)=\mu_i,\quad \mathrm{Var}(Y_i)=\sigma_i^2,
 \]
 where $Y_i$ is the observed residuary resistance and
 \[
@@ -308,50 +310,29 @@ where $Y_i$ is the observed residuary resistance and
 k\,\mathrm{Froude}_i^{\gamma_F}
 \exp\{\beta_B\,\mathrm{bd}_i\}.
 \]
-
-where $\mathrm{bd}_i$ is the beam--draught ratio (\texttt{beam\_draught}), and
-$k>0$ is the multiplicative constant of the power law. 
+Here $\mathrm{bd}_i$ is the beam--draught ratio (\texttt{beam\_draught}), and
+$k>0$ is the multiplicative constant of the power law.
 To model heteroscedasticity, we did not assume a constant variance. Instead, we used
 \[
 \sigma_i = \sigma_0 \mu_i^\delta .
 \]
-The parameter $\delta$ controls how fast the standard deviation grows with the fitted mean. 
-If $\delta=0$, then the model reduces to a homoscedastic additive-error model on the original scale. 
-If $\delta=1$, then the standard deviation is proportional to the mean, which is close to the multiplicative-error interpretation of the log-log model. 
-
+The parameter $\delta$ controls how fast the standard deviation grows with the fitted mean.
+If $\delta=0$, then the variance is constant.
+If $\delta=1$, then the standard deviation is proportional to the mean (constant coefficient of variation), which is close to the multiplicative-error interpretation of the log-log model.
 
 The parameters to be estimated are the constant $k$, the Froude exponent $\gamma_F$, the
-hull-coefficient $\beta_B$, the baseline noise level $\sigma_0$, and the
-\textbf{variance-growth exponent} $\delta$. We have include the test of heteroscedasticity correction
-by comparing the fixed version of the variance ($\delta=0$) and version with learned variance with WAIC and PSIS-LOO tests.
+hull coefficient $\beta_B$, the baseline noise level $\sigma_0$, and the
+\textbf{variance-growth exponent} $\delta$. We also test the heteroscedasticity correction
+by comparing the fixed-variance version ($\delta=0$) with the learned-variance version using WAIC and PSIS-LOO.
 
-For computation, the mean was rewritten in exponential form:
+For computation, the mean was rewritten in exponential form,
 \[
 \mu_i
 =
-\exp\{\log k+\gamma_F \log(\mathrm{Froude}_i)+\beta_B \mathrm{bd}_i\}.
+\exp\{\log k+\gamma_F \log(\mathrm{Froude}_i)+\beta_B \mathrm{bd}_i\},
 \]
-In the implementation we centered $\log(\mathrm{Froude})$ and beam-draught before fitting the model. 
-Writing
-$\log\mathrm{Froude}_i = m_F + \tilde{x}_{F,i}$ and
-$\mathrm{bd}_i = m_B + \tilde{x}_{B,i}$ and absorbing the constants into a single
-intercept $b_0$,
-\begin{equation}
-  b_0 = \log k + \gamma_F m_F + \beta_B m_B,
-  \label{eq:t3-b0}
-\end{equation}
-\begin{equation}
-  \mu_i
-  = \exp\!\big\{b_0 + \gamma_F\,\tilde{x}_{F,i} + \beta_B\,\tilde{x}_{B,i}\big\}.
-  \label{eq:t3-centred}
-\end{equation}
-Centring relabels the intercept but leaves the slopes $\gamma_F$ and $\beta_B$
-untouched, so it does not change the inference on the quantities of physical
-interest. After sampling, the physical constant is recovered draw by draw from
-\begin{equation}
-  k = \exp\!\big\{b_0 - \gamma_F m_F - \beta_B m_B\big\}.
-  \label{eq:t3-k}
-\end{equation}
+so that it is a log-linear predictor in the parameters, and the Gamma shape and rate are obtained
+from $\mu_i$ and $\sigma_i$ by moment matching as above.
 
 
 
@@ -362,7 +343,7 @@ interest. After sampling, the physical constant is recovered draw by draw from
 All priors are weakly informative and mutually independent. For the mean
 parameters,
 \begin{equation}
-  b_0 \sim \mathcal{N}(0,10^2),
+  \log k \sim \mathcal{N}(0,10^2),
   \qquad
   \gamma_F \sim \mathcal{N}(4,2^2),
   \qquad
@@ -385,12 +366,12 @@ $\mathcal{N}(4,0.5^2)$.
 \subsection{Posterior sampling algorithm}
 \label{sec:t3-algorithm}
 
-Unlike log-log linear model, the posterior distribution is not availiable in closed form.
+Unlike the log-log linear model, the posterior distribution is not available in closed form.
 The likelihood contains a nonlinear exponential mean, and the variance also depends on the mean through $\sigma_i=\sigma_0\mu_i^\delta$. Because of this non-conjugacy, we used MCMC in JAGS.
 
 For this model JAGS automatically assigned the univariate slice sampler to the continuous parameters.
 
-We run four independent chains, started from dispersed values of $\gamma_F$ ( $3,6,5,4$) and of $\delta$ (values $0,1,0.5,1.2$)
+We run four independent chains, started from dispersed values of $\gamma_F$ ($3,6,5,4$) and of $\delta$ ($0,1,0.5,1.2$).
 Each chain uses an adaptation phase, a burn-in that is discarded, and a thinned sampling phase.
 If chains launched from very different points all settle on the same
 distribution, that is good evidence the sampler has reached the posterior rather
@@ -399,8 +380,8 @@ than a starting-value-dependent region.
 \subsection{Convergence diagnostics}
 \label{sec:t3-convergence}
 
-Before doing any intrepretion from posterior distribution or sampling from posterior, we should check wheter our proposed model has converged.
-We checked the converges of the non-linear with several different methods. First we check Gelman--Rubin statistic $\hat{R}$. This compares the variance
+Before doing any interpretation from the posterior distribution or sampling from the posterior, we should check whether our proposed model has converged.
+We checked the convergence of the nonlinear model with several different methods. First we check the Gelman--Rubin statistic $\hat{R}$. This compares the variance
 between the dispersed chains to the variance within each chain. If the chains have all converged to the same distribution the two variances agree.
 Secondly, we check Effective sample size (ESS). Successive MCMC draws are autocorrelated, so $N$ kept draws carry less information than $N$ independent ones. The ESS estimates the equivalent number of independent draws; we want it in the thousands so that posterior means and quantiles are estimated with little Monte-Carlo error.
 Trace plots, for each parameter the four chains should look like
@@ -416,11 +397,11 @@ Finally, Autocorrelation function (ACF), For each parameter the autocorrelation 
 \hline
 Parameter & $\hat{R}$ & Effective sample size \\
 \hline
-$\delta$   & 1.0000 & 2208  \\
-$\sigma_0$ & 1.0000 & 3284  \\
-$b_0$      & 1.0002 & 4409  \\
-$\gamma_F$ & 0.9999 & 2182  \\
-$\beta_B$  & 1.0003 & 13012 \\
+$\delta$   & 1.000 & 3621  \\
+$\sigma_0$ & 1.000 & 6192  \\
+$\log k$   & 1.000 & 3331  \\
+$\gamma_F$ & 1.000 & 3032  \\
+$\beta_B$  & 1.001 & 12624 \\
 \hline
 \end{tabular}
 \end{table}
@@ -428,16 +409,16 @@ $\beta_B$  & 1.0003 & 13012 \\
 \begin{figure}[H]
 	\centering
 	\subfloat[Trace plots]{%
-		\includegraphics[width=0.49\textwidth]{figures/task3-diagnostics-1.pdf}}
+		\includegraphics[width=0.49\textwidth]{figures/task3-diagnostics-trace.pdf}}
 	\hfill
-	\subfloat[Posterior of $\beta_F$.]{%
-		\includegraphics[width=0.49\textwidth]{figures/task3-diagnostics-2.pdf}}
-	\caption{Trace plots of the variables, each color represents a chain.}
+	\subfloat[Autocorrelation functions]{%
+		\includegraphics[width=0.49\textwidth]{figures/task3-diagnostics-acf.pdf}}
+	\caption{Trace plots and autocorrelation functions for model M1; each colour represents a chain.}
 	\label{fig:convergence}
 \end{figure}
 
 Table~\ref{tab:m1-convergence} reports the convergence diagnostics for the main M1 run. All Gelman--Rubin statistics are essentially equal to one, indicating that the independently initialized chains are sampling from the same posterior distribution. The effective sample sizes are also sufficiently large for posterior inference, especially for $\beta_B$.
-Figure~\ref{fig:convergence} shows that different chains overlap on the plot and look stationary noices, it shows that every chained mixed with the given sampling numbers, and ACF decays to zero in few lags.
+Figure~\ref{fig:convergence} shows that the different chains overlap on the plot and look like stationary noise; it shows that every chain mixed with the given sampling numbers, and the ACF decays to zero within a few lags.
 
 
 \subsection{Posterior analysis}
@@ -450,29 +431,52 @@ the marginal posteriors of the three parameters of interest are shown in
 \begin{table}[H]
   \centering
   \caption{Posterior summaries for the heteroscedastic nonlinear model M1
-    (Froude $+$ \texttt{beam\_draught}), pooled over four chains; $k$ is the
-    back-transformed physical constant from \cref{eq:t3-k}.}
+    (Froude $+$ \texttt{beam\_draught}) with the Gamma likelihood, pooled over
+    four chains; $k$ is the multiplicative constant of the power law.}
   \label{tab:t3-post}
   \begin{tabular}{l r r r r r}
     \toprule
     \textbf{Parameter} & \textbf{Mean} & \textbf{SD} & \textbf{2.5\%} & \textbf{50\%} & \textbf{97.5\%} \\
     \midrule
-    $k$        & $10093.6$ & $1493$ & $ 7269.8$ & $10056.4$ & $13114$ \\
-    $\gamma_F$ & $6.4186$ & $0.1401$ & $6.1204$ & $6.4247$ & $6.6778$ \\
-    $\beta_B$  & $-0.0463$ & $0.0173$ & $-0.0797$ & $-0.0466$ & $ -0.0111$ \\
-    $\sigma_0$ & $0.7475$ & $0.0418$ & $0.6673$ & $0.7470$ & $0.8318$ \\
-    $\delta$   & $0.3950$ & $0.0302$ & $0.3397$ & $0.3932$ & $0.4595$ \\
+    $k$        & $1451.2$ & $228.8$ & $1052.4$ & $1432.1$ & $1945.2$ \\
+    $\gamma_F$ & $4.8191$ & $0.0654$ & $4.6957$ & $4.8176$ & $4.9509$ \\
+    $\beta_B$  & $0.0501$ & $0.0322$ & $-0.0130$ & $0.0501$ & $0.1133$ \\
+    $\sigma_0$ & $0.3528$ & $0.0169$ & $0.3217$ & $0.3521$ & $0.3879$ \\
+    $\delta$   & $0.8875$ & $0.0246$ & $0.8385$ & $0.8881$ & $0.9344$ \\
     \bottomrule
   \end{tabular}
 \end{table}
 
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.98\textwidth]{figures/task3-gamma-plot.pdf}
+  \caption{Marginal posteriors for the heteroscedastic nonlinear model M1
+    (Gamma likelihood). Left: the Froude exponent $\gamma_F$, with the dashed
+    line at the physical value $4$. Centre: the beam--draught coefficient
+    $\beta_B$, with the dashed line at $0$. Right: the variance-growth exponent
+    $\delta$, with the multiplicative value $\delta=1$ marked.}
+  \label{fig:t3-post}
+\end{figure}
 
+The Froude exponent is estimated at $\gamma_F\approx4.82$, with a $95\%$ credible
+interval $[4.70,4.95]$ that lies entirely above the physical value $4$
+($\Pr(\gamma_F>4\mid\bm{y})\approx1$). This is very close to the log-log estimate
+$\beta_F\approx4.69$ of \cref{sec:loglog}, so the original-scale Gamma model and
+the log-log model agree on the power-law exponent. The variance-growth exponent
+is $\delta\approx0.89$, credibly positive ($\Pr(\delta>0\mid\bm{y})\approx1$) and
+close to $1$, which means the standard deviation grows almost in proportion to the
+mean. The data are therefore clearly heteroscedastic, and the variance grows
+almost as fast as the multiplicative assumption that is implicit in the log-log
+model.
 
-We also performed a prior sensitivity check for $\gamma_F$ to check the proposed physical value 4.
-\[
-\gamma_F \sim N(4,2^2).
-\]
-To see whether the posterior estimate was mainly driven by this prior, we repeated the analysis with a vague prior, $N(0,10^2)$, and with a more informative prior, $N(4,0.5^2)$. The posterior mean was about $6.44$ under the vague prior and about $6.23$ under the informative prior. Thus, the informative prior pulls the estimate slightly toward 4, but even then the posterior remains clearly above 4. This suggests that the conclusion $\gamma_F>4$ is mainly driven by the likelihood and the chosen error model, not only by the prior.
+The hull covariate is weak under this model. The beam-draught coefficient is
+$\beta_B\approx0.05$, but its $95\%$ credible interval $[-0.013,0.113]$ contains
+zero ($\Pr(\beta_B<0\mid\bm{y})\approx0.06$), so it is not credibly different from
+zero. In other words, once the positive-support Gamma likelihood is used, the
+moderate BAS evidence for \texttt{beam\_draught} does not become a credible
+physical effect.
+
+We also performed a prior sensitivity check for $\gamma_F$ to test the proposed physical value 4. The main prior is $\gamma_F\sim\mathcal N(4,2^2)$. To see whether the posterior estimate was mainly driven by this prior, we repeated the analysis with a vague prior, $\mathcal N(0,10^2)$, and with a more informative prior, $\mathcal N(4,0.5^2)$. The posterior mean was about $4.82$ under the vague prior and about $4.80$ under the informative prior, essentially unchanged from the main prior. This shows that the conclusion $\gamma_F\approx4.8$ is driven by the likelihood and the data, not by the prior.
 
 \begin{table}[H]
   \centering
@@ -484,9 +488,9 @@ To see whether the posterior estimate was mainly driven by this prior, we repeat
     \toprule
     \textbf{Prior on $\gamma_F$} & \textbf{Mean} & \textbf{2.5\%} & \textbf{97.5\%} \\
     \midrule
-    $\mathcal{N}(4,2^2)$ (main)        & $6.4186$ & $0.1401$ & $6.6778$ \\
-    $\mathcal{N}(0,10^2)$ (vague)      & $6.4404$ & $0.1388$ & $6.7035$ \\
-    $\mathcal{N}(4,0.5^2)$ (informative) & $6.2302$ & $0.1556$ & $6.5187$ \\
+    $\mathcal{N}(4,2^2)$ (main)        & $4.8191$ & $4.6957$ & $4.9509$ \\
+    $\mathcal{N}(0,10^2)$ (vague)      & $4.8184$ & $4.6953$ & $4.9522$ \\
+    $\mathcal{N}(4,0.5^2)$ (informative) & $4.8021$ & $4.6801$ & $4.9332$ \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -494,20 +498,23 @@ To see whether the posterior estimate was mainly driven by this prior, we repeat
 \subsection{Model comparison}
 \label{sec:t3-modelcomp}
 
-We have three sensitivity check to validate the modelling choices, both answered with
+We have three checks to validate the modelling choices, all answered with
 WAIC and PSIS-LOO computed from the pointwise log-likelihood
 $\log p(y_i\mid\bm{\theta}^{(s)})$ of the MCMC draws (lower WAIC/LOOIC is
 better; PSIS-LOO additionally returns Pareto-$\hat k$ diagnostics that warn of
 overly influential observations).\\
 
-\paragraph{Covariate selection (was the BAS analysis correct?).}
+\paragraph{Check 1 --- covariate selection (was the BAS analysis correct?).}
 We compare the Froude-only mean structure \textbf{M0} against \textbf{M1}, which
 adds the BAS-selected hull covariate \texttt{beam\_draught} (both with the learned
-variance). Adding \texttt{beam\_draught} improves WAIC by $5.4$
-(\cref{tab:t3_mean_compare}), but the LOO difference,
-$\Delta\mathrm{elpd}=-2.7\pm3.2$, is within one standard error. The support for
-the covariate is therefore modest rather than decisive it helps, but
-the data do not insist on it.
+variance and the Gamma likelihood). Under the Gamma likelihood the two models are
+essentially tied (\cref{tab:t3_mean_compare}): WAIC improves by only $0.3$, and the
+LOO difference, $\Delta\mathrm{elpd}=-0.2\pm1.9$, is well within one standard
+error. So \texttt{beam\_draught} barely earns its place. This agrees with the
+posterior summary, where $\beta_B$ is not credibly different from zero. We keep
+M1 as the reference model to stay aligned with the BAS selection of
+\cref{sec:bma}, but the hull-geometry covariate adds little beyond the Froude
+power law.
 
 \begin{table}[h]
   \centering
@@ -520,20 +527,19 @@ the data do not insist on it.
     \textbf{Model} & \textbf{WAIC} & \textbf{LOOIC} & $p_{\mathrm{WAIC}}$ &
     $\max\hat k$ & $\Delta\mathrm{WAIC}$ & $\Delta\mathrm{elpd}\ (\mathrm{se}_{\Delta})$ \\
     \midrule
-    M0: Froude only            & $847.8$ & $847.8$ & $5.4$ & $0.4$ & $5.4$ & $-2.7\ (3.2)$ \\
-    M1: $+\,$\texttt{beam\_draught} & $842.4$ & $842.5$ & $6.2$ & $0.5$ & $0.0$ & $0.0\ (\text{--})$ \\
+    M0: Froude only            & $840.9$ & $841.0$ & $5.8$ & $0.6$ & $0.3$ & $-0.2\ (1.9)$ \\
+    M1: $+\,$\texttt{beam\_draught} & $840.6$ & $840.7$ & $7.1$ & $0.4$ & $0.0$ & $0.0\ (\text{--})$ \\
     \bottomrule
   \end{tabular}
 \end{table}
 
 \paragraph{Check 2: did learning the variance correct the
-heteroscedasticity} We compare the same M1 mean with a \emph{constant} variance
+heteroscedasticity?} We compare the same M1 mean with a \emph{constant} variance
 ($\delta\equiv0$) against the \emph{learned} variance ($\delta$ free). The
 learned-variance model is overwhelmingly preferred
-(\cref{tab:t3_var_compare}): WAIC drops by $324$ and
-$\Delta\mathrm{elpd}=-162.3\pm21.7$, roughly seven and a half standard errors.
-The constant-variance fit also carries a Pareto-$\hat k=0.8$ (one influential
-point).
+(\cref{tab:t3_var_compare}): WAIC drops by more than $800$ and
+$\Delta\mathrm{elpd}=-413.7\pm14.2$, about thirty standard errors. This confirms
+that the heteroscedasticity is real and that learning $\delta$ is essential.
 
 \begin{table}[h]
   \centering
@@ -547,50 +553,40 @@ point).
     \textbf{Variance} & \textbf{WAIC} & \textbf{LOOIC} & $p_{\mathrm{WAIC}}$ &
     $\max\hat k$ & $\Delta\mathrm{WAIC}$ & $\Delta\mathrm{elpd}\ (\mathrm{se}_{\Delta})$ \\
     \midrule
-    Constant ($\delta=0$)   & $1166.8$ & $1167.2$ & $14.0$ & $0.8$ & $324.3$ & $-162.3\ (21.7)$ \\
-    Learned ($\delta$ free) & $842.4$  & $842.5$  & $6.2$  & $0.5$ & $0.0$   & $0.0\ (\text{--})$ \\
+    Constant ($\delta=0$)   & $1668.0$ & $1668.0$ & $4.0$  & $0.3$ & $827.4$ & $-413.7\ (14.2)$ \\
+    Learned ($\delta$ free) & $840.6$  & $840.7$  & $7.1$  & $0.4$ & $0.0$   & $0.0\ (\text{--})$ \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-\paragraph{Check 3 --- likelihood: additive Normal vs.\ positive-support
-Gamma.} The additive Normal places positive density on negative resistance,
-which is physically impossible. As a likelihood-sensitivity check we refit the
-identical M1 mean $\mu_i=\exp(\bm{x}_i^\top\bm{\theta})$ and the identical learned
-scale $\sigma_i=\sigma_0\mu_i^{\delta}$ under a Gamma likelihood, moment-matched
-through
-\[
-  Y_i\sim\mathrm{Gamma}\!\Big(\text{shape}=\tfrac{\mu_i^2}{\sigma_i^2},\
-  \text{rate}=\tfrac{\mu_i}{\sigma_i^2}\Big),\qquad
-  \mathbb{E}(Y_i)=\mu_i,\quad \mathrm{Var}(Y_i)=\sigma_i^2 .
-\]
-Crucially $\delta$ remains a free, learned parameter (the implied Gamma shape is
-$\mu_i^{\,2-2\delta}/\sigma_0^2$), so this is a fair counterpart to M1 and not a
-likelihood that silently forces multiplicative ($\delta=1$) error. The priors on
-$\bm{\theta}$, $\sigma_0$ and $\delta$ are identical to M1, so the likelihood
-family is the only thing that changes. Because both models are densities of the
-same observable on the same original scale, their WAIC/PSIS-LOO are directly
-comparable. The additive Normal gives
-\textbf{sharper} bands (mean 95\% width $5.5$ vs.\ $9.7$) and marginally higher
-coverage ($0.99$ vs.\ $0.96$).
+\paragraph{Check 3 --- likelihood: Gamma vs.\ additive Normal.} The Gamma keeps
+the response on its positive support. As a likelihood-sensitivity check we refit
+the identical M1 mean $\mu_i=\exp(\bm{x}_i^\top\bm{\theta})$ and the identical
+learned scale $\sigma_i=\sigma_0\mu_i^{\delta}$ under an additive Normal
+likelihood, $Y_i\sim\mathcal N(\mu_i,\sigma_i^2)$, which is the most literal
+reading of the additive error in the project formula. The priors and the free
+$\delta$ are identical, so the likelihood family is the only thing that changes,
+and because both models are densities of the same observable on the same original
+scale their WAIC/PSIS-LOO are directly comparable.
 
 \begin{figure}[h]
   \centering
   \includegraphics[width=0.8\linewidth]{figures/task3-gamma-predictive-overlay.pdf}
-  \caption{Posterior-predictive bands of the additive Normal (red) and Gamma
-    (green) M1 fits on the original resistance scale, with observed data. The
-    mean curves coincide; the Normal's un-clipped lower band (dashed) dips below
-    zero at low Froude, whereas the Gamma's lower band stays non-negative.}
+  \caption{Posterior-predictive bands of the Gamma main model (green) and the
+    additive-Normal sensitivity fit (red) on the original resistance scale, with
+    observed data. The additive Normal's mean curve is steeper and its un-clipped
+    lower band (dashed) dips below zero at low Froude, whereas the Gamma's lower
+    band stays non-negative.}
   \label{fig:t3_gamma_overlay}
 \end{figure}
 
 \begin{table}[h]
   \centering
-  \caption{Likelihood sensitivity for M1: additive Normal vs.\ moment-matched
-    Gamma, same mean and learned-variance structure. WAIC/LOOIC are on the
+  \caption{Likelihood sensitivity for M1: Gamma main model vs.\ additive Normal,
+    same mean and learned-variance structure. WAIC/LOOIC are on the
     original resistance scale; the predictive columns are evaluated at the
-    observed design points. The two fit the data equally well; they differ only
-    in predictive sharpness versus support.}
+    observed design points. The two fit the data equally well; they differ in
+    support and in the inference on $\gamma_F$ and \texttt{beam\_draught}.}
   \label{tab:t3_lik_compare}
   \begin{tabular}{lcccccc}
     \toprule
@@ -598,21 +594,31 @@ coverage ($0.99$ vs.\ $0.96$).
     $\max\hat k$ & \textbf{95\% cov.} & \textbf{band width} &
     $\Pr(y^{\mathrm{rep}}<0)$ \\
     \midrule
-    Additive Normal & $842.4$ & $842.5$ & $0.5$ & $0.987$ & $5.54$ & $0.127$ \\
     Gamma           & $840.6$ & $840.7$ & $0.4$ & $0.961$ & $9.66$ & $0.000$ \\
+    Additive Normal & $842.8$ & $842.8$ & $0.6$ & $0.987$ & $5.55$ & $0.127$ \\
     \midrule
-    \multicolumn{7}{l}{\footnotesize $\Delta\mathrm{elpd}=0.9$,\quad
-      $\mathrm{se}_{\Delta}=16.9$ (Gamma vs.\ Normal --- not significant).}\\
+    \multicolumn{7}{l}{\footnotesize $\Delta\mathrm{elpd}=-1.1$,\quad
+      $\mathrm{se}_{\Delta}=16.9$ (Normal vs.\ Gamma --- not significant).}\\
     \bottomrule
   \end{tabular}
 \end{table}
 
-\Cref{tab:t3_lik_compare} reports the result. The two likelihoods are
-statistically indistinguishable on fit: WAIC and LOOIC differ by only
-$1.8$, and $\Delta\mathrm{elpd}=0.9$ against $\mathrm{se}_{\Delta}=16.9$ about
-one-twentieth of a standard error, i.e.\ Monte-Carlo noise. All Pareto-$\hat
-k<0.5$, so this null result is reliable. The data therefore cannot prefer one
-likelihood over the other.
+\Cref{tab:t3_lik_compare} reports the result. On fit the two are a tie: WAIC
+differs by only about $2$, and $\Delta\mathrm{elpd}=-1.1$ against
+$\mathrm{se}_{\Delta}=16.9$, well within Monte-Carlo noise; all Pareto-$\hat
+k<0.6$, so this null result is reliable. The data therefore cannot prefer one
+likelihood over the other on fit alone. They differ in two other ways. First, the
+additive Normal places about $13\%$ of its posterior-predictive mass below zero,
+which is impossible for a resistance, while the Gamma places none; the Normal does
+give sharper bands (mean 95\% width $5.5$ vs.\ $9.7$), but partly through this
+negative tail. Second, and more important, the inference itself changes: the
+additive Normal inflates the Froude exponent to $\gamma_F\approx6.4$ and forces
+\texttt{beam\_draught} credibly negative, neither of which survives under the
+Gamma. We keep the Gamma as the main model, both because it respects the support
+and because its $\gamma_F\approx4.8$ agrees with the independent log-log estimate,
+and we read the additive Normal as evidence that the steep exponent and the
+negative hull effect are artifacts of the error model rather than robust physical
+effects.
 
 
 
@@ -780,6 +786,7 @@ Once the Froude number is in the model, none of the five hull form factors is in
 
 \paragraph{Residual diagnostics.}
 Although the global fit is excellent, the residuals (\cref{fig:resid}) reveal two systematic defects. First, a $\cup$-shaped trend against the fitted values: a single constant exponent slightly over-predicts at intermediate speeds and under-predicts at the highest speeds. Second, the residual spread is markedly larger at low fitted values, i.e.\ at low Froude numbers where the resistance is tiny and dominated by measurement noise --- a textbook signature of heteroscedasticity, also visible as the fanning of the data cloud on the left of \cref{fig:loglog}. Both findings directly motivate the heteroscedasticity-corrected nonlinear model developed in the main text.
+
 
 \begin{table}[H]
 	\centering
