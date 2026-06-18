@@ -186,8 +186,6 @@ where $\bm{m}_0$ and $\bm{S}_0$ collect the prior means and variances of Eq.~\eq
 
 For any moderately diffuse physical prior ($\tau\ge0.1$) the likelihood dominates and the posterior mean stays in $4.56$--$4.68$. The conclusion that the empirical exponent is genuinely steeper than $Fn^{\,4}$ is therefore \textbf{robust to the prior}: it is a feature of the $n=308$ observations, not an artefact of the non-informative choice, a transparent instance of prior--data conflict, in which an informative likelihood overwhelms all but an unreasonably confident prior.
 
-\newpage
-
 
 \section{BAS/BMA model selection over hull covariates}
 \label{sec:bma}
@@ -309,7 +307,6 @@ original-scale model checks whether that covariate improves posterior
 predictive performance once the variance growth with resistance is modelled
 explicitly.
 
-\newpage
 
 \section{Heteroscedasticity-Corrected Nonlinear Model}
 
@@ -419,11 +416,11 @@ Finally, Autocorrelation function (ACF), For each parameter the autocorrelation 
 \hline
 Parameter & $\hat{R}$ & Effective sample size \\
 \hline
-$\delta$   & 1.000 & 3621  \\
-$\sigma_0$ & 1.000 & 6192  \\
-$\log k$   & 1.000 & 3331  \\
-$\gamma_F$ & 1.000 & 3032  \\
-$\beta_B$  & 1.001 & 12624 \\
+$\delta$   & 1.0004	 & 3594	 \\
+$\sigma_0$ & 1.0000 & 6710  \\
+$\log k$   & 1.0007 & 3328  \\
+$\gamma_F$ & 1.0008	 & 3106  \\
+$\beta_B$  & 1.0006 & 12000 \\
 \hline
 \end{tabular}
 \end{table}
@@ -431,10 +428,10 @@ $\beta_B$  & 1.001 & 12624 \\
 \begin{figure}[H]
 	\centering
 	\subfloat[Trace plots]{%
-		\includegraphics[width=0.49\textwidth]{figures/task3-diagnostics-trace.pdf}}
+		\includegraphics[width=0.49\textwidth]{figures/task3-diagnostics-1.pdf}}
 	\hfill
 	\subfloat[Autocorrelation functions]{%
-		\includegraphics[width=0.49\textwidth]{figures/task3-diagnostics-acf.pdf}}
+		\includegraphics[width=0.49\textwidth]{figures/task3-diagnostics-2.pdf}}
 	\caption{Trace plots and autocorrelation functions for model M1; each colour represents a chain.}
 	\label{fig:convergence}
 \end{figure}
@@ -460,11 +457,11 @@ the marginal posteriors of the three parameters of interest are shown in
     \toprule
     \textbf{Parameter} & \textbf{Mean} & \textbf{SD} & \textbf{2.5\%} & \textbf{50\%} & \textbf{97.5\%} \\
     \midrule
-    $k$        & $1451.2$ & $228.8$ & $1052.4$ & $1432.1$ & $1945.2$ \\
-    $\gamma_F$ & $4.8191$ & $0.0654$ & $4.6957$ & $4.8176$ & $4.9509$ \\
-    $\beta_B$  & $0.0501$ & $0.0322$ & $-0.0130$ & $0.0501$ & $0.1133$ \\
-    $\sigma_0$ & $0.3528$ & $0.0169$ & $0.3217$ & $0.3521$ & $0.3879$ \\
-    $\delta$   & $0.8875$ & $0.0246$ & $0.8385$ & $0.8881$ & $0.9344$ \\
+    $k$        & $1446.56$ & $223.93$ & $1053.74$ & $1431.21$ & $1927.33$ \\
+    $\gamma_F$ & $4.8168$ & $0.0647$ & $4.6910$ & $4.8155$ & $4.9469$ \\
+    $\beta_B$  & $0.0501$ & $0.0314$ & $-0.0104$ & $0.0500$ & $0.1123$ \\
+    $\sigma_0$ & $0.3527$ & $0.0171$ & $0.3213$ & $0.3522$ & $0.3880$ \\
+    $\delta$   & $0.8881$ & $0.0246$ & $0.8388$ & $0.8884$ & $0.9356$ \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -517,72 +514,12 @@ We also performed a prior sensitivity check for $\gamma_F$ to test the proposed 
   \end{tabular}
 \end{table}
 
-\subsection{Model comparison}
-\label{sec:t3-modelcomp}
-
-We have three checks to validate the modelling choices, all answered with
-WAIC and PSIS-LOO computed from the pointwise log-likelihood
-$\log p(y_i\mid\bm{\theta}^{(s)})$ of the MCMC draws (lower WAIC/LOOIC is
-better; PSIS-LOO additionally returns Pareto-$\hat k$ diagnostics that warn of
-overly influential observations).\\
-
-\paragraph{Check 1 --- covariate selection (was the BAS analysis correct?).}
-We compare the Froude-only mean structure \textbf{M0} against \textbf{M1}, which
-adds the BAS-selected hull covariate \texttt{beam\_draught} (both with the learned
-variance and the Gamma likelihood). Under the Gamma likelihood the two models are
-essentially tied (\cref{tab:t3_mean_compare}): WAIC improves by only $0.3$, and the
-LOO difference, $\Delta\mathrm{elpd}=-0.2\pm1.9$, is well within one standard
-error. So \texttt{beam\_draught} barely earns its place. This agrees with the
-posterior summary, where $\beta_B$ is not credibly different from zero. We keep
-M1 as the reference model to stay aligned with the BAS selection of
-\cref{sec:bma}, but the hull-geometry covariate adds little beyond the Froude
-power law.
-
-\begin{table}[h]
-  \centering
-  \caption{Mean-structure check (Check 1): Froude-only M0 vs.\ M1 with
-    \texttt{beam\_draught}, both with learned variance. $\Delta\mathrm{elpd}$ and
-    $\mathrm{se}_{\Delta}$ are from \texttt{loo\_compare} against M1.}
-  \label{tab:t3_mean_compare}
-  \begin{tabular}{lcccccc}
-    \toprule
-    \textbf{Model} & \textbf{WAIC} & \textbf{LOOIC} & $p_{\mathrm{WAIC}}$ &
-    $\max\hat k$ & $\Delta\mathrm{WAIC}$ & $\Delta\mathrm{elpd}\ (\mathrm{se}_{\Delta})$ \\
-    \midrule
-    M0: Froude only            & $840.9$ & $841.0$ & $5.8$ & $0.6$ & $0.3$ & $-0.2\ (1.9)$ \\
-    M1: $+\,$\texttt{beam\_draught} & $840.6$ & $840.7$ & $7.1$ & $0.4$ & $0.0$ & $0.0\ (\text{--})$ \\
-    \bottomrule
-  \end{tabular}
-\end{table}
-
-\paragraph{Check 2: did learning the variance correct the
-heteroscedasticity?} We compare the same M1 mean with a \emph{constant} variance
-($\delta\equiv0$) against the \emph{learned} variance ($\delta$ free). The
-learned-variance model is overwhelmingly preferred
-(\cref{tab:t3_var_compare}): WAIC drops by more than $800$ and
-$\Delta\mathrm{elpd}=-413.7\pm14.2$, about thirty standard errors. This confirms
-that the heteroscedasticity is real and that learning $\delta$ is essential.
-
-\begin{table}[h]
-  \centering
-  \caption{Variance-structure check (Check 2): same M1 mean with constant
-    variance ($\delta=0$) vs.\ learned variance ($\delta$ free).
-    $\Delta\mathrm{elpd}$ and $\mathrm{se}_{\Delta}$ are from
-    \texttt{loo\_compare} against the learned-variance model.}
-  \label{tab:t3_var_compare}
-  \begin{tabular}{lcccccc}
-    \toprule
-    \textbf{Variance} & \textbf{WAIC} & \textbf{LOOIC} & $p_{\mathrm{WAIC}}$ &
-    $\max\hat k$ & $\Delta\mathrm{WAIC}$ & $\Delta\mathrm{elpd}\ (\mathrm{se}_{\Delta})$ \\
-    \midrule
-    Constant ($\delta=0$)   & $1668.0$ & $1668.0$ & $4.0$  & $0.3$ & $827.4$ & $-413.7\ (14.2)$ \\
-    Learned ($\delta$ free) & $840.6$  & $840.7$  & $7.1$  & $0.4$ & $0.0$   & $0.0\ (\text{--})$ \\
-    \bottomrule
-  \end{tabular}
-\end{table}
-
-\paragraph{Check 3 --- likelihood: Gamma vs.\ additive Normal.} The Gamma keeps
-the response on its positive support. As a likelihood-sensitivity check we refit
+\subsection{Additional Sensitivity Checks}
+We have concluded three aditional tests on the model and likelihood selections. First, we have compared the Froude only mean structure M0
+against M1, which add the \texttt{beam\_draught}. Under the gamma likelihood the two models are essentially tied, WAIC for M1 model improves
+by only $0.3$, and the LOO difference, $\Delta\mathrm{elpd}=-0.2\pm1.9$. Furthermore, we have tested the same M1 mean with a constant variance ($\delta\equiv0$) against the learned variance. The learned-variance model is overwhelmingly preferred: 
+WAIC drops by more than $800$ and $\Delta\mathrm{elpd}=-413.7\pm14.2$, about thirty standard errors.
+Lastly, as a likelihood-sensitivity check we refit
 the identical M1 mean $\mu_i=\exp(\bm{x}_i^\top\bm{\theta})$ and the identical
 learned scale $\sigma_i=\sigma_0\mu_i^{\delta}$ under an additive Normal
 likelihood, $Y_i\sim\mathcal N(\mu_i,\sigma_i^2)$, which is the most literal
@@ -590,17 +527,6 @@ reading of the additive error in the project formula. The priors and the free
 $\delta$ are identical, so the likelihood family is the only thing that changes,
 and because both models are densities of the same observable on the same original
 scale their WAIC/PSIS-LOO are directly comparable.
-
-\begin{figure}[h]
-  \centering
-  \includegraphics[width=0.8\linewidth]{figures/task3-gamma-predictive-overlay.pdf}
-  \caption{Posterior-predictive bands of the Gamma main model (green) and the
-    additive-Normal sensitivity fit (red) on the original resistance scale, with
-    observed data. The additive Normal's mean curve is steeper and its un-clipped
-    lower band (dashed) dips below zero at low Froude, whereas the Gamma's lower
-    band stays non-negative.}
-  \label{fig:t3_gamma_overlay}
-\end{figure}
 
 \begin{table}[h]
   \centering
@@ -891,5 +817,55 @@ Although the global fit is excellent, the residuals (\cref{fig:resid}) reveal tw
 		prior is unreasonably confident.}
 	\label{fig:informative}
 \end{figure}
+
+\begin{table}[h]
+  \centering
+  \caption{Mean-structure check (Check 1): Froude-only M0 vs.\ M1 with
+    \texttt{beam\_draught}, both with learned variance. $\Delta\mathrm{elpd}$ and
+    $\mathrm{se}_{\Delta}$ are from \texttt{loo\_compare} against M1.}
+  \label{tab:t3_mean_compare}
+  \begin{tabular}{lcccccc}
+    \toprule
+    \textbf{Model} & \textbf{WAIC} & \textbf{LOOIC} & $p_{\mathrm{WAIC}}$ &
+    $\max\hat k$ & $\Delta\mathrm{WAIC}$ & $\Delta\mathrm{elpd}\ (\mathrm{se}_{\Delta})$ \\
+    \midrule
+    M0: Froude only            & $840.9$ & $841.0$ & $5.8$ & $0.6$ & $0.3$ & $-0.2\ (1.9)$ \\
+    M1: $+\,$\texttt{beam\_draught} & $840.6$ & $840.7$ & $7.1$ & $0.4$ & $0.0$ & $0.0\ (\text{--})$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+
+
+\begin{table}[h]
+  \centering
+  \caption{Variance-structure check (Check 2): same M1 mean with constant
+    variance ($\delta=0$) vs.\ learned variance ($\delta$ free).
+    $\Delta\mathrm{elpd}$ and $\mathrm{se}_{\Delta}$ are from
+    \texttt{loo\_compare} against the learned-variance model.}
+  \label{tab:t3_var_compare}
+  \begin{tabular}{lcccccc}
+    \toprule
+    \textbf{Variance} & \textbf{WAIC} & \textbf{LOOIC} & $p_{\mathrm{WAIC}}$ &
+    $\max\hat k$ & $\Delta\mathrm{WAIC}$ & $\Delta\mathrm{elpd}\ (\mathrm{se}_{\Delta})$ \\
+    \midrule
+    Constant ($\delta=0$)   & $1668.0$ & $1668.0$ & $4.0$  & $0.3$ & $827.4$ & $-413.7\ (14.2)$ \\
+    Learned ($\delta$ free) & $840.6$  & $840.7$  & $7.1$  & $0.4$ & $0.0$   & $0.0\ (\text{--})$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.8\linewidth]{figures/task3-gamma-predictive-overlay.pdf}
+  \caption{Posterior-predictive bands of the Gamma main model (green) and the
+    additive-Normal sensitivity fit (red) on the original resistance scale, with
+    observed data. The additive Normal's mean curve is steeper and its un-clipped
+    lower band (dashed) dips below zero at low Froude, whereas the Gamma's lower
+    band stays non-negative.}
+  \label{fig:t3_gamma_overlay}
+\end{figure}
+
+
 
 \end{document}
