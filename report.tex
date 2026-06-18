@@ -494,7 +494,7 @@ To see whether the posterior estimate was mainly driven by this prior, we repeat
 \subsection{Model comparison}
 \label{sec:t3-modelcomp}
 
-We use two questions to validate the modelling choices, both answered with
+We have three sensitivity check to validate the modelling choices, both answered with
 WAIC and PSIS-LOO computed from the pointwise log-likelihood
 $\log p(y_i\mid\bm{\theta}^{(s)})$ of the MCMC draws (lower WAIC/LOOIC is
 better; PSIS-LOO additionally returns Pareto-$\hat k$ diagnostics that warn of
@@ -503,6 +503,56 @@ overly influential observations).\\
 First question is that was the BAS analysis true?
 
 Second question is was learned variance correct the heteroscedasticity.
+
+\paragraph{Check 3 --- likelihood: additive Normal vs.\ positive-support
+Gamma.} The additive Normal places positive density on negative resistance,
+which is physically impossible. As a likelihood-sensitivity check we refit the
+identical M1 mean $\mu_i=\exp(\bm{x}_i^\top\bm{\theta})$ and the identical learned
+scale $\sigma_i=\sigma_0\mu_i^{\delta}$ under a Gamma likelihood, moment-matched
+through
+\[
+  Y_i\sim\mathrm{Gamma}\!\Big(\text{shape}=\tfrac{\mu_i^2}{\sigma_i^2},\
+  \text{rate}=\tfrac{\mu_i}{\sigma_i^2}\Big),\qquad
+  \mathbb{E}(Y_i)=\mu_i,\quad \mathrm{Var}(Y_i)=\sigma_i^2 .
+\]
+Crucially $\delta$ remains a free, learned parameter (the implied Gamma shape is
+$\mu_i^{\,2-2\delta}/\sigma_0^2$), so this is a fair counterpart to M1 and not a
+likelihood that silently forces multiplicative ($\delta=1$) error. The priors on
+$\bm{\theta}$, $\sigma_0$ and $\delta$ are identical to M1, so the likelihood
+family is the only thing that changes. Because both models are densities of the
+same observable on the same original scale, their WAIC/PSIS-LOO are directly
+comparable.
+
+\Cref{tab:t3_lik_compare} reports the result. The two likelihoods are
+\textbf{statistically indistinguishable on fit}: WAIC and LOOIC differ by only
+$1.8$, and $\Delta\mathrm{elpd}=0.9$ against $\mathrm{se}_{\Delta}=16.9$ --- about
+one-twentieth of a standard error, i.e.\ Monte-Carlo noise. All Pareto-$\hat
+k<0.5$, so this null result is reliable. The data therefore cannot prefer one
+likelihood over the other.
+
+\begin{table}[h]
+  \centering
+  \caption{Likelihood sensitivity for M1: additive Normal vs.\ moment-matched
+    Gamma, same mean and learned-variance structure. WAIC/LOOIC are on the
+    original resistance scale; the predictive columns are evaluated at the
+    observed design points. The two fit the data equally well; they differ only
+    in predictive sharpness versus support.}
+  \label{tab:t3_lik_compare}
+  \begin{tabular}{lcccccc}
+    \toprule
+    \textbf{Likelihood} & \textbf{WAIC} & \textbf{LOOIC} &
+    $\max\hat k$ & \textbf{95\% cov.} & \textbf{band width} &
+    $\Pr(y^{\mathrm{rep}}<0)$ \\
+    \midrule
+    Additive Normal & $842.4$ & $842.5$ & $0.5$ & $0.987$ & $5.54$ & $0.127$ \\
+    Gamma           & $840.6$ & $840.7$ & $0.4$ & $0.961$ & $9.66$ & $0.000$ \\
+    \midrule
+    \multicolumn{7}{l}{\footnotesize $\Delta\mathrm{elpd}=0.9$,\quad
+      $\mathrm{se}_{\Delta}=16.9$ (Gamma vs.\ Normal --- not significant).}\\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
 
 \section{Posterior Predictive Curves}
 \label{sec:posterior_predictive}

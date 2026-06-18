@@ -554,6 +554,13 @@ xB_c <- yh$beam_draught - mB
 
 X0 <- cbind(intercept = 1, log_Fr = xF_c)                    # M0: Froude only
 X1 <- cbind(X0, beam_draught = xB_c)                         # M1: + beam_draught
+
+save_current_pdf <- function(filename, width, height) {
+  dir.create("figures", showWarnings = FALSE)
+  dev.copy(pdf, file = file.path("figures", filename),
+           width = width, height = height)
+  invisible(dev.off())
+}
 ```
 
 ```{r task3-jags-model, message=FALSE, warning=FALSE}
@@ -674,11 +681,13 @@ rbind(diag_table(fit_M0, "M0 (main prior)"),
 op <- par(mfrow = c(2, 2), mar = c(4, 4, 2, 1))
 traceplot(fit_M1[, c("theta[2]", "theta[3]", "sigma0", "delta")])
 par(op)
+save_current_pdf("task3-diagnostics-trace.pdf", width = 10, height = 6)
 
 op <- par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
 acf(as.matrix(fit_M1[, "theta[2]"]), main = "ACF gamma_F (pooled chains)")
 acf(as.matrix(fit_M1[, "delta"]),    main = "ACF delta (pooled chains)")
 par(op)
+save_current_pdf("task3-diagnostics-acf.pdf", width = 10, height = 6)
 ```
 
 All $\hat R$ are $\approx 1$ and the effective sample sizes are comfortably large, so the chains can be pooled for inference.
@@ -732,6 +741,7 @@ acf(as.matrix(fit_M1_plain[[1]][, "theta[2]"]), lag.max = 200,
 acf(as.matrix(fit_M1[[1]][, "theta[2]"]), lag.max = 200,
     main = "ACF gamma_F - weighted centring (chain 1)")
 par(op)
+save_current_pdf("task3-centring-compare.pdf", width = 10, height = 7)
 ```
 
 The comparison isolates the effect of the parametrization on the slice sampler. With ordinary-mean centring the intercept and the Froude exponent are almost perfectly (negatively) correlated in the posterior, so JAGS's univariate slice sampler has to crawl along a thin diagonal ridge and mixes slowly; the $y^2$-weighted centring weakens that correlation substantially and aligns the ridge much closer to the coordinate axes. Both parametrizations describe the same mean curve, so they must agree on $\gamma_F$ after convergence — the printed summaries confirm this to within Monte-Carlo error — but the weighted version reaches that posterior with several times the effective sample size and faster-decaying autocorrelation. Note also that the plain mean is *not* the right centre here: because the additive-error likelihood is dominated by the high-resistance points, the de-correlating centre is the $y^2$-weighted mean, which is exactly why ordinary mean-centring barely helps.
@@ -803,6 +813,7 @@ legend("topright", bty = "n", lwd = c(2, 1), lty = c(2, 3),
        legend = c(expression(delta == 0*" (homoscedastic)"),
                   expression(delta == 1*" (multiplicative)")))
 par(op)
+save_current_pdf("task3-gamma-plot.pdf", width = 13, height = 4.6)
 ```
 
 ```{r task3-sensitivity}
@@ -963,6 +974,7 @@ qqnorm(std_M1, pch = 16, cex = 0.6, col = rgb(0, 0, 0, 0.45),
        main = "Normal Q-Q (standardized residuals)")
 qqline(std_M1, col = "firebrick")
 par(op)
+save_current_pdf("task3-resid-diag.pdf", width = 10, height = 7.5)
 ```
 
 The diagnostics confirm that learning the variance corrects the heteroscedasticity. The **raw** residuals still fan out (their tertile spread ratio is well above 1) — this is the heteroscedasticity that defeated the constant-variance model. Once each residual is standardized by its own fitted $\hat\sigma_i=\hat\sigma_0\hat\mu_i^{\hat\delta}$, the funnel is largely removed: the scale-location curve is roughly flat, the standardized-residual spread is close to unity across fitted-value tertiles, the correlation between $|$standardized residual$|$ and the fitted value collapses from strongly positive (under a constant $\sigma$) to essentially zero, and about 95% of standardized residuals lie within the $\pm 2$ band. The fit is not flawless — a single power-law variance function cannot reproduce every feature of the spread — but it is a decisive improvement over the constant-variance model and is exactly the correction the project asks for.
@@ -988,6 +1000,7 @@ qqnorm(logresid_M1, pch = 16, cex = 0.6, col = rgb(0, 0, 0, 0.45),
        main = "Normal Q-Q (log residuals, part 3)")
 qqline(logresid_M1, col = "firebrick")
 par(op)
+save_current_pdf("task3-resid-log.pdf", width = 10, height = 4.4)
 ```
 
 Read against the part-1 figure, this puts both fits on identical axes. On the log scale the part-3 residuals show a *pronounced* shrinking-variance pattern — the printed correlation between $|\log\text{ residual}|$ and the fitted value is about $-0.90$, an even stronger trend than part 1 showed. This is exactly what an *additive* original-scale model must look like through a log lens: a roughly fixed absolute error becomes a small *relative* error at large resistance. So each model looks well-behaved on its own scale and heteroscedastic on the other — which is precisely why the original-scale diagnostics above are the proper goodness-of-fit check for the part-3 model, while this log-scale view is included only for direct comparison with part 1.
@@ -1053,9 +1066,245 @@ legend("topleft", bty = "n", lwd = c(2.5, 2.5, NA), pch = c(NA, NA, 16),
        legend = c("constant variance (delta = 0): mean + 95% band",
                   "learned variance (delta free): mean + 95% band",
                   "observed data"))
+save_current_pdf("task3-ppc-var.pdf", width = 9, height = 5.8)
 ```
 
 The plot shows why learning the variance matters for prediction. The constant-variance model has a band of roughly **fixed absolute width**: it is far too wide at low Froude, where the data lie in a tight sliver near zero (and the lower band even crosses into negative resistance before clipping), yet comparatively too narrow at high Froude, where the scatter is largest. The learned-variance band instead **narrows toward low Froude and widens with the resistance**, hugging the data cloud across the whole range. The coverage table quantifies the difference: the learned-variance model actually covers *more* of the data (about 98% vs 95%) while using a *narrower* average band (width $\approx 5.5$ vs $6.2$). It reallocates predictive uncertainty to where the data are genuinely spread out, instead of inflating it uniformly — the predictive-side confirmation of the WAIC/PSIS-LOO verdict and the residual diagnostics.
+
+### Likelihood sensitivity: positive-support Gamma model
+
+The additive Normal model is useful as an original-scale measurement-error approximation, but resistance is physically positive. As a likelihood-sensitivity check, we therefore refit the same M1 mean structure and the same learned variance function with a Gamma likelihood. This is not used to replace the main model above; it asks whether the central conclusions depend on allowing a small negative Normal tail at low Froude. The Gamma distribution is parameterized by its mean and variance,
+
+$$
+Y_i \sim \mathrm{Gamma}\!\left(
+\text{shape}_i=\frac{\mu_i^2}{\sigma_i^2},
+\text{rate}_i=\frac{\mu_i}{\sigma_i^2}
+\right),
+\qquad E(Y_i)=\mu_i,\qquad \mathrm{Var}(Y_i)=\sigma_i^2,
+$$
+
+with the same $\mu_i=\exp(X_i^\top\theta)$ and $\sigma_i=\sigma_0\mu_i^\delta$ as in M1.
+
+```{r task3-gamma-sensitivity-fit, cache=TRUE}
+jags_gamma_hetero <- "
+model {
+  for (i in 1:n) {
+    mu[i]    <- exp(inprod(X[i, ], theta))
+    sigma[i] <- sigma0 * pow(mu[i], delta)
+    shape[i] <- (mu[i] * mu[i]) / (sigma[i] * sigma[i])
+    rate[i]  <- mu[i] / (sigma[i] * sigma[i])
+    y[i] ~ dgamma(shape[i], rate[i])
+  }
+  for (j in 1:p) {
+    theta[j] ~ dnorm(prior_mean[j], 1 / (prior_sd[j] * prior_sd[j]))
+  }
+  logs0  ~ dnorm(0, 1 / 100)
+  sigma0 <- exp(logs0)
+  delta  ~ dnorm(0, 1)
+}"
+
+run_jags_gamma <- function(X, prior_mean, prior_sd,
+                           n_chains = 4, n_adapt = 1000, n_burn = 2000,
+                           n_iter = 8000, thin = 2,
+                           gamma_inits = c(3, 6, 5, 4),
+                           delta_inits = c(0.5, 1, 0.8, 1.2),
+                           seed0 = 3026) {
+  p <- ncol(X)
+  stopifnot(length(prior_mean) == p, length(prior_sd) == p)
+  dat <- list(y = y_res, X = X, n = nrow(X), p = p,
+              prior_mean = prior_mean, prior_sd = prior_sd)
+  theta0 <- coef(lm(log(y_res) ~ X - 1))
+
+  inits <- lapply(seq_len(n_chains), function(ch) {
+    th <- theta0; th[2] <- gamma_inits[ch]
+    list(theta = unname(th),
+         logs0 = log(0.4),
+         delta = delta_inits[ch],
+         .RNG.name = "base::Mersenne-Twister", .RNG.seed = seed0 + ch)
+  })
+
+  jm <- jags.model(textConnection(jags_gamma_hetero),
+                   data = dat, inits = inits, n.chains = n_chains,
+                   n.adapt = n_adapt, quiet = TRUE)
+  update(jm, n_burn)
+  samp <- coda.samples(jm, c("theta", "sigma0", "delta"),
+                       n.iter = n_iter, thin = thin)
+  attr(samp, "samplers") <- unique(names(list.samplers(jm)))
+  samp
+}
+
+fit_M1_gamma <- run_jags_gamma(
+  X1, prior_mean = c(0, 4, 0), prior_sd = c(10, 2, 2)
+)
+
+cat("Samplers JAGS assigned (Gamma sensitivity):",
+    paste(attr(fit_M1_gamma, "samplers"), collapse = ", "), "\n")
+```
+
+```{r task3-gamma-sensitivity-summary, fig.width=13, fig.height=4.6}
+gamma_sens_summary <- rbind(
+  `main M1: additive Normal` = post_summary(fit_M1),
+  `sensitivity: Gamma`       = post_summary(fit_M1_gamma)
+)
+round(gamma_sens_summary[, c("mean", "sd", "2.5%", "50%", "97.5%")], 4)
+
+d_gamma <- as.matrix(fit_M1_gamma)
+gF_gamma <- d_gamma[, "theta[2]"]
+bB_gamma <- d_gamma[, "theta[3]"]
+dl_gamma <- d_gamma[, "delta"]
+
+cat(sprintf(
+  "Gamma sensitivity: P(gamma_F > 4 | y) = %.4f   P(beta_B < 0 | y) = %.4f   P(delta > 0 | y) = %.4f\n",
+  mean(gF_gamma > 4), mean(bB_gamma < 0), mean(dl_gamma > 0)
+))
+
+op <- par(mfrow = c(1, 3), mar = c(4.2, 4.2, 2, 1))
+plot(density(gF_draws), col = "firebrick", lwd = 2.4,
+     main = expression("Likelihood sensitivity: "*gamma[F]),
+     xlab = expression(gamma[F]), ylab = "posterior density")
+lines(density(gF_gamma), col = "darkgreen", lwd = 2.4)
+abline(v = 4, lty = 2)
+legend("topright", bty = "n", lwd = c(2.4, 2.4, 1),
+       col = c("firebrick", "darkgreen", "black"), lty = c(1, 1, 2),
+       legend = c("additive Normal M1", "Gamma sensitivity", expression(gamma[F] == 4)))
+
+plot(density(bB_draws), col = "firebrick", lwd = 2.4,
+     main = expression("Likelihood sensitivity: "*beta[B]),
+     xlab = expression(beta[B]), ylab = "posterior density")
+lines(density(bB_gamma), col = "darkgreen", lwd = 2.4)
+abline(v = 0, lty = 2)
+
+plot(density(dl_draws), col = "firebrick", lwd = 2.4,
+     main = expression("Likelihood sensitivity: "*delta),
+     xlab = expression(delta), ylab = "posterior density")
+lines(density(dl_gamma), col = "darkgreen", lwd = 2.4)
+abline(v = c(0, 1), lty = c(2, 3), col = c("black", "grey50"))
+par(op)
+save_current_pdf("task3-gamma-likelihood-sensitivity.pdf", width = 13, height = 4.6)
+```
+
+The Gamma sensitivity fit keeps the same learned-variance idea but removes the impossible negative-support tail. The key robustness question is therefore not whether every coefficient is identical, but which conclusions survive the likelihood change. If the Gamma fit still places $\gamma_F$ above $4$, the main Froude-scaling conclusion is support-robust. If the posterior for `beam_draught` changes sign or moves toward zero, then the hull-effect conclusion should be reported as likelihood-sensitive rather than as a stable physical finding.
+
+#### Which likelihood fits better? WAIC / PSIS-LOO
+
+A sensitivity check is only persuasive if the two likelihoods are scored on a common footing. Both the additive-Normal M1 and the Gamma fit are densities of the **same** observable $y_i$ (residuary resistance) on the **same** original scale, so their pointwise log-likelihoods — and hence WAIC and PSIS-LOO — are directly comparable (no Jacobian, unlike the log-log model). The Gamma log-likelihood reuses the identical mean $\mu_i$ and learned scale $\sigma_i=\sigma_0\mu_i^\delta$, mapped to the Gamma shape/rate exactly as in the model block. Lower WAIC/LOOIC is better; `loo_compare` reports the difference in expected log predictive density with a standard error, so a gap is only meaningful if it is several `se_diff`.
+
+```{r task3-gamma-vs-normal-ic}
+## Gamma pointwise log-likelihood, same draws structure as log_lik_from_fit().
+log_lik_gamma_from_fit <- function(fit, X, n_draws = 4000, seed = 2026) {
+  d <- as.matrix(fit)
+  set.seed(seed)
+  d   <- d[sample(nrow(d), n_draws), ]
+  th  <- d[, paste0("theta[", seq_len(ncol(X)), "]"), drop = FALSE]
+  eta <- th %*% t(X)                                        # n_draws x n
+  mu  <- exp(eta)
+  sigma <- d[, "sigma0"] * exp(d[, "delta"] * eta)          # per-obs sd
+  shape <- (mu / sigma)^2                                   # mu^2 / sigma^2
+  rate  <- mu / (sigma * sigma)                             # mu   / sigma^2
+  dgamma(matrix(y_res, n_draws, n_obs, byrow = TRUE),
+         shape = shape, rate = rate, log = TRUE)
+}
+
+ll_M1_gamma  <- log_lik_gamma_from_fit(fit_M1_gamma, X1)
+loo_M1_gamma <- loo(ll_M1_gamma, r_eff = NA)
+
+ic_lik <- rbind(
+  "M1: additive Normal" = ic_from_log_lik(ll_M1,       loo_M1),
+  "M1: Gamma"           = ic_from_log_lik(ll_M1_gamma, loo_M1_gamma))
+round(cbind(ic_lik,
+            dWAIC  = ic_lik[, "WAIC"]  - min(ic_lik[, "WAIC"]),
+            dLOOIC = ic_lik[, "LOOIC"] - min(ic_lik[, "LOOIC"])), 1)
+
+## elpd difference with Monte-Carlo standard error (decides if the gap is real)
+loo_compare(list(
+  "M1 additive Normal" = loo_M1,
+  "M1 Gamma"           = loo_M1_gamma
+))
+```
+
+#### Predictive cost of the negative tail vs. coverage
+
+The whole motivation for the Gamma was the impossible negative tail of the Normal band at low Froude. The check below quantifies that defect directly — the posterior-predictive probability of a *negative* resistance at the observed design points — alongside 95% coverage and mean band width, so the trade-off is explicit: the Gamma pays zero probability below zero by construction, and we read off whether it does so at any cost in coverage.
+
+```{r task3-gamma-vs-normal-predictive}
+## Gamma posterior-predictive analogue of predict_nonlinear().
+predict_gamma <- function(fit, X_new, n_draws = 3000) {
+  d <- as.matrix(fit)
+  d <- d[sample(nrow(d), n_draws), ]
+  theta <- d[, paste0("theta[", seq_len(ncol(X_new)), "]"), drop = FALSE]
+  eta   <- theta %*% t(X_new)
+  mu    <- exp(eta)
+  sigma <- d[, "sigma0"] * exp(d[, "delta"] * eta)
+  yrep  <- matrix(rgamma(length(mu), shape = (mu / sigma)^2, rate = mu / sigma^2),
+                  nrow = n_draws)
+  list(mean  = colMeans(mu),
+       lower = apply(yrep, 2, quantile, 0.025),
+       upper = apply(yrep, 2, quantile, 0.975),
+       p_neg = mean(yrep < 0))
+}
+
+## Posterior-predictive P(y_rep < 0) under the additive Normal at observed points.
+neg_mass_normal <- {
+  d <- as.matrix(fit_M1)
+  set.seed(7); d <- d[sample(nrow(d), 3000), ]
+  theta <- d[, paste0("theta[", seq_len(ncol(X1)), "]"), drop = FALSE]
+  eta   <- theta %*% t(X1); mu <- exp(eta)
+  sigma <- d[, "sigma0"] * exp(d[, "delta"] * eta)
+  mean(mu + matrix(rnorm(length(mu), sd = sigma), nrow = nrow(d)) < 0)
+}
+
+pp_g <- predict_gamma(fit_M1_gamma, X1)
+cmp <- rbind(
+  "additive Normal" = c(cover(fit_M1),
+                        P_yrep_below_0 = neg_mass_normal),
+  "Gamma"           = c(coverage        = mean(y_res >= pp_g$lower & y_res <= pp_g$upper),
+                        mean_band_width = mean(pp_g$upper - pp_g$lower),
+                        P_yrep_below_0  = pp_g$p_neg))
+round(cmp, 4)
+```
+
+**The verdict: a tie on fit, a trade on prediction.** The two likelihoods are statistically indistinguishable on goodness of fit. WAIC and LOOIC differ by only $1.8$ (842.4 vs 840.6), and `loo_compare` puts the gap at $\mathrm{elpd\_diff}=0.9$ against $\mathrm{se\_diff}=16.9$ — about one-twentieth of a standard error, i.e. pure Monte-Carlo noise. All Pareto-$k$ values are below $0.5$, so PSIS-LOO is reliable and this "no difference" conclusion can be trusted. The data therefore *cannot* prefer one likelihood over the other, and we do **not** claim the Normal fits better.
+
+What does differ is predictive behaviour. The additive Normal produces **sharper** bands (mean 95% width $\approx 5.5$ vs the Gamma's $\approx 9.7$) and marginally higher coverage ($0.99$ vs $0.96$), because the Gamma buys positive support through a long right tail at low Froude (its shape $\propto\mu^{\,2-2\delta}$ becomes small there) which inflates the upper quantile. The price the Normal pays is the defect the examiner flagged: averaged over the observed design points it places about **13% of its posterior-predictive mass below zero**, concentrated at the lowest-Froude points where the symmetric Gaussian spills past the physical boundary. The Gamma places exactly **0%** there by construction.
+
+So the choice is not about fit — it is a trade between a sharper band that violates the support and a wider band that respects it. We keep the additive Normal as the main model for its sharpness and interpretable additive-error structure, and report the Gamma as confirmation that the substantive conclusions ($\gamma_F$ well above $4$, the negative `beam_draught` effect, and $\delta\in(0,1)$) **do not depend on the likelihood's support**. The likelihood sensitivity is thus a robustness result, not a model-selection result.
+
+Finally, the two posterior-predictive bands are shown together on the original resistance scale with the observed data overlaid, so the trade-off above is visible directly: the Normal and Gamma mean curves coincide, while the Gamma's lower band stays non-negative at low Froude where the Normal's (dashed) dips below zero before clipping.
+
+```{r task3-gamma-predictive-overlay, fig.width=9, fig.height=5.8}
+set.seed(42)
+pp_norm_grid  <- predict_nonlinear(fit_M1,       Xgrid)   # additive Normal M1
+pp_gamma_grid <- predict_gamma(fit_M1_gamma,     Xgrid)   # Gamma sensitivity
+
+ylim_top <- max(yh$resistance, pp_norm_grid$upper, pp_gamma_grid$upper)
+plot(yh$Froude, yh$resistance, pch = 16, cex = 0.65, col = rgb(0, 0, 0, 0.42),
+     xlab = "Froude number", ylab = "residuary resistance",
+     ylim = c(min(0, pp_norm_grid$lower), ylim_top * 1.04),
+     main = "Posterior predictive: additive Normal vs Gamma (Task 3)")
+col_norm  <- rgb(0.8, 0.1, 0.1, 0.15)
+col_gamma <- rgb(0.0, 0.5, 0.0, 0.15)
+polygon(c(fr_grid, rev(fr_grid)),
+        c(pp_norm_grid$lower, rev(pp_norm_grid$upper)),
+        col = col_norm, border = NA)
+polygon(c(fr_grid, rev(fr_grid)),
+        c(pp_gamma_grid$lower, rev(pp_gamma_grid$upper)),
+        col = col_gamma, border = NA)
+abline(h = 0, col = "grey60", lty = 3)
+## un-clipped Normal lower band, to make the negative excursion explicit
+lines(fr_grid, pp_norm_grid$lower, col = "firebrick", lwd = 1, lty = 2)
+points(yh$Froude, yh$resistance, pch = 16, cex = 0.65, col = rgb(0, 0, 0, 0.42))
+lines(fr_grid, pp_norm_grid$mean,  col = "firebrick",  lwd = 2.5)
+lines(fr_grid, pp_gamma_grid$mean, col = "darkgreen",  lwd = 2.5)
+legend("topleft", bty = "n",
+       lwd = c(2.5, 2.5, 1, NA), lty = c(1, 1, 2, NA), pch = c(NA, NA, NA, 16),
+       pt.cex = c(NA, NA, NA, 0.8),
+       col = c("firebrick", "darkgreen", "firebrick", rgb(0, 0, 0, 0.42)),
+       legend = c("additive Normal: mean + 95% band",
+                  "Gamma: mean + 95% band",
+                  "Normal lower band (un-clipped, dips < 0)",
+                  "observed data"))
+save_current_pdf("task3-gamma-predictive-overlay.pdf", width = 9, height = 5.8)
+```
 
 ## 4. Posterior predictive curves
 
@@ -1203,7 +1452,7 @@ dev.off()
 
 The plot shows the practical consequence of the two error models. The log-log fit keeps the Froude exponent near the physical fourth-power law and produces multiplicative uncertainty: its band is very tight near zero resistance and expands as resistance grows. This describes the low and middle Froude range well, but its mean curve is too flat at the highest speeds, where the data rise faster than the fitted $Fn^{4.69}$ law.
 
-The heteroscedastic nonlinear fit behaves differently. Its mean curve is steeper than the log-log law ($\gamma_F\approx6.4$) and follows the high-Froude data better. Crucially, because its variance is now learned ($\sigma_i=\sigma_0\mu_i^{\delta}$ with $\delta\approx0.4$), its predictive band is **no longer constant in width**: it widens with the fitted resistance and tightens toward zero at low Froude. This is the visible payoff of the heteroscedasticity correction — the band tracks the actual scatter of the data across the whole Froude range, instead of being uniformly too wide at low speeds (the defect of the constant-variance model) or collapsing to near zero (the log-log model). Because $\delta<1$, the low-Froude band does not shrink all the way to a point as the lognormal log-log band does, so a small amount of probability can still fall below zero before display clipping.
+The heteroscedastic nonlinear fit behaves differently. Its mean curve is steeper than the log-log law ($\gamma_F\approx6.4$) and follows the high-Froude data better. Crucially, because its variance is now learned ($\sigma_i=\sigma_0\mu_i^{\delta}$ with $\delta\approx0.4$), its predictive band is **no longer constant in width**: it widens with the fitted resistance and tightens toward zero at low Froude. This is the visible payoff of the heteroscedasticity correction — the band tracks the actual scatter of the data across the whole Froude range, instead of being uniformly too wide at low speeds (the defect of the constant-variance model) or collapsing to near zero (the log-log model). Because $\delta<1$, the low-Froude band does not shrink all the way to a point as the lognormal log-log band does; the symmetric additive error therefore places a non-trivial amount of predictive probability below zero at the lowest-Froude points (about 13% averaged over the observed design points), which is clipped only for display. The positive-support Gamma sensitivity fit in Part 3 removes this mass entirely at the cost of wider low-Froude bands, while leaving the substantive conclusions unchanged.
 
 **Conclusion of part 4.** The two predictive families differ mainly in how their uncertainty scales with resistance. The log-log model imposes strictly multiplicative ($\delta=1$) uncertainty, which is positive by construction but too tight at low speed and too flat in the mean at high speed; the heteroscedastic nonlinear model **estimates** the variance growth ($\delta\approx0.4$) and so adapts its band to the data, while also recovering the steeper high-Froude trend and making the selected hull covariate visible. The comparison reinforces part 3: inference on the Froude exponent and on `beam_draught` is strongly driven by the error model, and explicitly learning the variance — rather than fixing it — is what makes the predictive bands track the data across the whole Froude range.
 
