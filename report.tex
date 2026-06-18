@@ -500,9 +500,58 @@ $\log p(y_i\mid\bm{\theta}^{(s)})$ of the MCMC draws (lower WAIC/LOOIC is
 better; PSIS-LOO additionally returns Pareto-$\hat k$ diagnostics that warn of
 overly influential observations).\\
 
-First question is that was the BAS analysis true?
+\paragraph{Covariate selection (was the BAS analysis correct?).}
+We compare the Froude-only mean structure \textbf{M0} against \textbf{M1}, which
+adds the BAS-selected hull covariate \texttt{beam\_draught} (both with the learned
+variance). Adding \texttt{beam\_draught} improves WAIC by $5.4$
+(\cref{tab:t3_mean_compare}), but the LOO difference,
+$\Delta\mathrm{elpd}=-2.7\pm3.2$, is within one standard error. The support for
+the covariate is therefore modest rather than decisive it helps, but
+the data do not insist on it.
 
-Second question is was learned variance correct the heteroscedasticity.
+\begin{table}[h]
+  \centering
+  \caption{Mean-structure check (Check 1): Froude-only M0 vs.\ M1 with
+    \texttt{beam\_draught}, both with learned variance. $\Delta\mathrm{elpd}$ and
+    $\mathrm{se}_{\Delta}$ are from \texttt{loo\_compare} against M1.}
+  \label{tab:t3_mean_compare}
+  \begin{tabular}{lcccccc}
+    \toprule
+    \textbf{Model} & \textbf{WAIC} & \textbf{LOOIC} & $p_{\mathrm{WAIC}}$ &
+    $\max\hat k$ & $\Delta\mathrm{WAIC}$ & $\Delta\mathrm{elpd}\ (\mathrm{se}_{\Delta})$ \\
+    \midrule
+    M0: Froude only            & $847.8$ & $847.8$ & $5.4$ & $0.4$ & $5.4$ & $-2.7\ (3.2)$ \\
+    M1: $+\,$\texttt{beam\_draught} & $842.4$ & $842.5$ & $6.2$ & $0.5$ & $0.0$ & $0.0\ (\text{--})$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\paragraph{Check 2: did learning the variance correct the
+heteroscedasticity} We compare the same M1 mean with a \emph{constant} variance
+($\delta\equiv0$) against the \emph{learned} variance ($\delta$ free). The
+learned-variance model is overwhelmingly preferred
+(\cref{tab:t3_var_compare}): WAIC drops by $324$ and
+$\Delta\mathrm{elpd}=-162.3\pm21.7$, roughly seven and a half standard errors.
+The constant-variance fit also carries a Pareto-$\hat k=0.8$ (one influential
+point).
+
+\begin{table}[h]
+  \centering
+  \caption{Variance-structure check (Check 2): same M1 mean with constant
+    variance ($\delta=0$) vs.\ learned variance ($\delta$ free).
+    $\Delta\mathrm{elpd}$ and $\mathrm{se}_{\Delta}$ are from
+    \texttt{loo\_compare} against the learned-variance model.}
+  \label{tab:t3_var_compare}
+  \begin{tabular}{lcccccc}
+    \toprule
+    \textbf{Variance} & \textbf{WAIC} & \textbf{LOOIC} & $p_{\mathrm{WAIC}}$ &
+    $\max\hat k$ & $\Delta\mathrm{WAIC}$ & $\Delta\mathrm{elpd}\ (\mathrm{se}_{\Delta})$ \\
+    \midrule
+    Constant ($\delta=0$)   & $1166.8$ & $1167.2$ & $14.0$ & $0.8$ & $324.3$ & $-162.3\ (21.7)$ \\
+    Learned ($\delta$ free) & $842.4$  & $842.5$  & $6.2$  & $0.5$ & $0.0$   & $0.0\ (\text{--})$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \paragraph{Check 3 --- likelihood: additive Normal vs.\ positive-support
 Gamma.} The additive Normal places positive density on negative resistance,
@@ -521,14 +570,19 @@ likelihood that silently forces multiplicative ($\delta=1$) error. The priors on
 $\bm{\theta}$, $\sigma_0$ and $\delta$ are identical to M1, so the likelihood
 family is the only thing that changes. Because both models are densities of the
 same observable on the same original scale, their WAIC/PSIS-LOO are directly
-comparable.
+comparable. The additive Normal gives
+\textbf{sharper} bands (mean 95\% width $5.5$ vs.\ $9.7$) and marginally higher
+coverage ($0.99$ vs.\ $0.96$).
 
-\Cref{tab:t3_lik_compare} reports the result. The two likelihoods are
-\textbf{statistically indistinguishable on fit}: WAIC and LOOIC differ by only
-$1.8$, and $\Delta\mathrm{elpd}=0.9$ against $\mathrm{se}_{\Delta}=16.9$ --- about
-one-twentieth of a standard error, i.e.\ Monte-Carlo noise. All Pareto-$\hat
-k<0.5$, so this null result is reliable. The data therefore cannot prefer one
-likelihood over the other.
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.8\linewidth]{figures/task3-gamma-predictive-overlay.pdf}
+  \caption{Posterior-predictive bands of the additive Normal (red) and Gamma
+    (green) M1 fits on the original resistance scale, with observed data. The
+    mean curves coincide; the Normal's un-clipped lower band (dashed) dips below
+    zero at low Froude, whereas the Gamma's lower band stays non-negative.}
+  \label{fig:t3_gamma_overlay}
+\end{figure}
 
 \begin{table}[h]
   \centering
@@ -552,6 +606,16 @@ likelihood over the other.
     \bottomrule
   \end{tabular}
 \end{table}
+
+\Cref{tab:t3_lik_compare} reports the result. The two likelihoods are
+statistically indistinguishable on fit: WAIC and LOOIC differ by only
+$1.8$, and $\Delta\mathrm{elpd}=0.9$ against $\mathrm{se}_{\Delta}=16.9$ about
+one-twentieth of a standard error, i.e.\ Monte-Carlo noise. All Pareto-$\hat
+k<0.5$, so this null result is reliable. The data therefore cannot prefer one
+likelihood over the other.
+
+
+
 
 
 \section{Posterior Predictive Curves}
