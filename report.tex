@@ -758,7 +758,7 @@ comparison to a non-Bayesian point-fit exercise.
 
 \clearpage
 \appendix
-\section{Tables and Figures}
+\section{Appendix}
 \label{app:tables}
 
 \begin{table}[H]
@@ -924,6 +924,45 @@ Although the global fit is excellent, the residuals (\cref{fig:resid}) reveal tw
     lower band (dashed) dips below zero at low Froude, whereas the Gamma's lower
     band stays non-negative.}
   \label{fig:t3_gamma_overlay}
+\end{figure}
+
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.8\linewidth]{figures/task3-resid-diag.pdf}
+  \caption{Original-scale residual diagnostics for the heteroscedastic nonlinear
+    model M1, with each residual standardized by its own fitted standard
+    deviation $\hat\sigma_i=\hat\sigma_0\hat\mu_i^{\hat\delta}$. \emph{Top left:}
+    raw residuals versus fitted resistance with a LOWESS trend (navy); the spread
+    still fans out, the heteroscedasticity that the variance model must absorb.
+    \emph{Top right:} scale--location plot,
+    $\sqrt{|\text{standardized residual}|}$ versus fitted value; the roughly flat
+    trend shows the learned variance function $\sigma_i=\sigma_0\mu_i^{\delta}$
+    removes the funnel. \emph{Bottom left:} standardized residuals versus the
+    Froude number with the $\pm2$ reference band; no remaining trend against the
+    physical driver. \emph{Bottom right:} Normal Q--Q plot of the standardized
+    residuals. After standardization the spread is close to unity and about
+    $95\%$ of points lie within $\pm2$, confirming that learning the variance
+    corrects the heteroscedasticity.}
+  \label{fig:t3_resid-diag}
+\end{figure}
+
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.8\linewidth]{figures/task3-resid-log.pdf}
+  \caption{Log-scale residual diagnostics for the nonlinear model M1, plotted on
+    the same axes as the part-1 log--log diagnostics
+    (\cref{fig:resid}) for a like-for-like comparison. \emph{Left:} log residuals
+    $\log y_i-\log\hat\mu_i$ versus the fitted log-resistance
+    $\log\hat\mu_i$, with a LOWESS trend (navy). \emph{Right:} Normal Q--Q plot
+    of the log residuals. Because the learned variance is close to multiplicative
+    ($\delta\approx0.9$), the M1 residuals are nearly homoscedastic on the log
+    scale as well, mirroring the log--log fit; this is the log-lens counterpart of
+    the agreement between $\gamma_F\approx4.82$ and the log--log exponent
+    $\beta_F\approx4.69$. The original-scale diagnostics
+    (\cref{fig:t3_resid-diag}) remain the proper goodness-of-fit check for M1.}
+  \label{fig:t3_resid-log}
 \end{figure}
 
 
