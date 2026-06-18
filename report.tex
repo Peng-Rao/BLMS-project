@@ -298,6 +298,57 @@ supports the conclusion that the treatment of heteroscedasticity is essential
 for interpreting both the Froude exponent and the selected hull covariate
 \texttt{beam\_draught}.
 
+\section{Train/Test Validation}
+\label{sec:validation}
+
+As an additional predictive check, we also split the data randomly into training
+and test sets, using about $80\%$ of the observations for training and $20\%$ for
+testing. This validation is not used to replace the full-data Bayesian analysis:
+the scientific conclusions above are based on the posterior fitted to all 308
+observations. The split is only a held-out check of whether the posterior
+predictive distributions behave sensibly on unseen rows.
+
+The validation is kept on the same Bayesian scale as the posterior predictive
+curves. Instead of comparing only point predictions through RMSE or MAE, each
+candidate model is evaluated through its posterior predictive distribution on
+the test rows. For the log--log model, the predictive density is lognormal on the
+original resistance scale. For the nonlinear models, the predictive density is
+normal on the original scale, either with constant residual variance or with the
+learned heteroscedastic variance
+$\sigma_i=\sigma_0\mu_i^\delta$.
+
+For each test observation we compute the posterior predictive log density,
+\[
+	\log p(y_i^{\mathrm{test}}\mid y^{\mathrm{train}}),
+\]
+and then summarize the models by total log predictive density, mean log
+predictive density, $95\%$ predictive-interval coverage, and average predictive
+band width. Higher log predictive density indicates better held-out predictive
+accuracy. Coverage close to $95\%$ indicates calibrated uncertainty, while the
+band width checks whether good coverage is achieved efficiently rather than by
+making intervals unnecessarily wide.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.95\textwidth]{figures/train_test_validation.pdf}
+	\caption{Train/test posterior predictive validation on the held-out rows. The
+		black points are observed test responses ordered by resistance. Coloured
+		points show posterior predictive means, and vertical intervals show the
+		corresponding $95\%$ posterior predictive bands for the log--log model, the
+		constant-variance nonlinear M1 model, and the learned-variance nonlinear M1
+		model.}
+	\label{fig:train_test_validation}
+\end{figure}
+
+This validation supports the same interpretation as the posterior predictive
+curves. The preferred model is the nonlinear M1 specification with
+\texttt{beam\_draught} and learned heteroscedastic variance when it combines
+strong held-out log predictive density with calibrated $95\%$ intervals and
+reasonable band width. In other words, the validation checks both the location of
+the fitted curve and the uncertainty around it, confirming that the
+heteroscedasticity treatment improves prediction without reducing the comparison
+to a non-Bayesian point-fit exercise.
+
 \clearpage
 \printbibliography[heading=bibintoc, title = {References}]
 
