@@ -1233,11 +1233,11 @@ The last comparison should be made on the original resistance scale, because thi
 For the log-log model, the posterior predictive distribution is lognormal on the original scale: after drawing $(\beta,\sigma^2)$ from the reference-prior posterior, we simulate $$
 \log y_i^{\mathrm{rep}} \sim \mathcal N(x_i^\top\beta,\sigma^2),
 \qquad y_i^{\mathrm{rep}} = \exp(\log y_i^{\mathrm{rep}}).
-$$ For the heteroscedasticity-treated nonlinear model M1, the predictive distribution is normal on the original scale but with a **mean-dependent** variance: $$
-y_i^{\mathrm{rep}} \sim \mathcal N\left(\mu_i,\ \sigma_i^2\right),\qquad
+$$ For the heteroscedasticity-treated nonlinear model M1, the predictive distribution is Gamma on the original scale with mean $\mu_i$ and mean-dependent standard deviation $\sigma_i$: $$
+y_i^{\mathrm{rep}} \sim \mathrm{Gamma}\left(\alpha_i,\ r_i\right),\qquad
 \mu_i=\exp\{b_0 + \gamma_F\widetilde{\log Fn}_i + \beta_B\widetilde{bd}_i\},\qquad
 \sigma_i=\sigma_0\,\mu_i^{\delta},
-$$ so the predictive band automatically widens where the resistance (and hence its scatter) is larger and tightens near zero. The curves hold hull form fixed at a representative value: `beam_draught` is set to its sample median, while the other log-log hull covariates are set to their sample means. This isolates the Froude-resistance curve rather than mixing different hull geometries.
+$$ with $\alpha_i=(\mu_i/\sigma_i)^2$ and $r_i=\mu_i/\sigma_i^2$. This keeps replicated resistances positive by construction while still letting the predictive band widen where the resistance, and hence the scatter, is larger. The curves hold hull form fixed at a representative value: `beam_draught` is set to its sample median, while the other log-log hull covariates are set to their sample means. This isolates the Froude-resistance curve rather than mixing different hull geometries.
 
 ```{r task4-posterior-predictive, fig.width=9, fig.height=5.8}
 set.seed(42)
@@ -1281,7 +1281,8 @@ draw_loglog_pred <- function(fit, newdata, n_draws = 5000) {
 }
 
 ## Draw posterior predictive samples for the heteroscedastic nonlinear M1 model.
-## The observation sd is mean-dependent: sigma_i = sigma0 * mu_i^delta.
+## The main Task 3 likelihood is Gamma, parameterized by mean mu and
+## sd sigma_i = sigma0 * mu_i^delta.
 draw_M1_pred <- function(fit, X_new, n_draws = 5000) {
   d <- as.matrix(fit)
   d <- d[sample(seq_len(nrow(d)), n_draws), ]
@@ -1290,8 +1291,9 @@ draw_M1_pred <- function(fit, X_new, n_draws = 5000) {
   eta <- theta %*% t(X_new)
   mu  <- exp(eta)
   sigma <- d[, "sigma0"] * exp(d[, "delta"] * eta)   # per-draw, per-point sd
-  yrep <- mu + matrix(rnorm(length(mu), sd = sigma),
-                      nrow = n_draws, ncol = nrow(X_new))
+  yrep <- matrix(rgamma(length(mu), shape = (mu / sigma)^2,
+                        rate = mu / (sigma * sigma)),
+                 nrow = n_draws, ncol = nrow(X_new))
 
   list(mean = colMeans(mu),
        lower = apply(yrep, 2, quantile, 0.025),
@@ -1299,6 +1301,7 @@ draw_M1_pred <- function(fit, X_new, n_draws = 5000) {
 }
 
 pp_loglog <- draw_loglog_pred(fit, new_loglog)
+pp_M1_homo <- draw_M1_pred(fit_M1_homo, new_M1)
 pp_M1 <- draw_M1_pred(fit_M1, new_M1)
 
 ## Coverage is evaluated at the observed design points, using the same predictive rule.
@@ -1308,19 +1311,51 @@ obs_loglog <- data.frame(log_Fr = yh$log_Fr,
                          L_beam = yh$L_beam)
 obs_M1 <- X1
 cover_loglog <- draw_loglog_pred(fit, obs_loglog, n_draws = 3000)
+cover_M1_homo <- draw_M1_pred(fit_M1_homo, obs_M1, n_draws = 3000)
 cover_M1 <- draw_M1_pred(fit_M1, obs_M1, n_draws = 3000)
 coverage <- rbind(
   `log-log, multiplicative errors` = c(
     coverage = mean(yh$resistance >= cover_loglog$lower & yh$resistance <= cover_loglog$upper),
     mean_band_width = mean(cover_loglog$upper - cover_loglog$lower)),
-  `nonlinear M1, additive errors` = c(
+  `Gamma M1, constant variance` = c(
+    coverage = mean(yh$resistance >= cover_M1_homo$lower & yh$resistance <= cover_M1_homo$upper),
+    mean_band_width = mean(cover_M1_homo$upper - cover_M1_homo$lower)),
+  `nonlinear M1, Gamma learned variance` = c(
     coverage = mean(yh$resistance >= cover_M1$lower & yh$resistance <= cover_M1$upper),
     mean_band_width = mean(cover_M1$upper - cover_M1$lower))
 )
 round(coverage, 3)
 
-## Plot on the original scale. Negative lower tails from the additive normal
-## model are clipped only for display because resistance cannot be negative.
+pp_widths <- data.frame(
+  Froude = fr_grid,
+  loglog = pp_loglog$upper - pp_loglog$lower,
+  gamma_constant = pp_M1_homo$upper - pp_M1_homo$lower,
+  gamma_learned = pp_M1$upper - pp_M1$lower
+)
+
+plot_task4_widths <- function(file = NULL) {
+  if (!is.null(file)) pdf(file, width = 8.5, height = 5.2)
+  yr <- range(pp_widths[, -1], finite = TRUE)
+  plot(pp_widths$Froude, pp_widths$loglog, type = "l", lwd = 2.4,
+       col = "navy", ylim = yr, xlab = "Froude number",
+       ylab = "95% posterior predictive band width",
+       main = "Predictive uncertainty across the Froude range")
+  lines(pp_widths$Froude, pp_widths$gamma_constant, lwd = 2.4,
+        col = "darkorange3")
+  lines(pp_widths$Froude, pp_widths$gamma_learned, lwd = 2.4,
+        col = "firebrick")
+  legend("topleft", bty = "n", lwd = 2.4,
+         col = c("navy", "darkorange3", "firebrick"),
+         legend = c("log-log", "Gamma M1 constant variance",
+                    "Gamma M1 learned variance"))
+  if (!is.null(file)) dev.off()
+}
+
+plot_task4_widths()
+plot_task4_widths("figures/posterior_predictive_widths.pdf")
+
+## Plot on the original scale. Both predictive families have positive support:
+## log-log is lognormal after back-transformation and M1 is Gamma.
 ylim_top <- max(yh$resistance, pp_loglog$upper, pp_M1$upper)
 plot(yh$Froude, yh$resistance, pch = 16, cex = 0.65,
      col = rgb(0, 0, 0, 0.42), xlab = "Froude number",
@@ -1370,11 +1405,11 @@ legend("topleft", bty = "n", lwd = c(2.5, 2.5, NA), pch = c(NA, NA, 16),
 dev.off()
 ```
 
-The plot shows the practical consequence of the two error models. The log-log fit keeps the Froude exponent near the physical fourth-power law and produces multiplicative uncertainty: its band is very tight near zero resistance and expands as resistance grows. This describes the low and middle Froude range well, but its mean curve is too flat at the highest speeds, where the data rise faster than the fitted $Fn^{4.69}$ law.
+The plot shows the practical consequence of the updated Task 3 model. The log-log fit produces a lognormal posterior predictive band on the original scale: it is positive by construction, narrow near zero resistance, and expands multiplicatively as resistance grows. The Gamma M1 fit also stays on the positive support, but it learns the variance growth directly through $\sigma_i=\sigma_0\mu_i^{\delta}$ with $\delta\approx0.89$. Thus its band is close to multiplicative, but not imposed to be exactly so. This explains why the fitted exponent $\gamma_F\approx4.82$ is close to the log-log estimate $\beta_F\approx4.69$: both models weight the data in a broadly relative-error way.
 
-The heteroscedastic nonlinear fit behaves differently. Its mean curve is steeper than the log-log law ($\gamma_F\approx6.4$) and follows the high-Froude data better. Crucially, because its variance is now learned ($\sigma_i=\sigma_0\mu_i^{\delta}$ with $\delta\approx0.4$), its predictive band is **no longer constant in width**: it widens with the fitted resistance and tightens toward zero at low Froude. This is the visible payoff of the heteroscedasticity correction — the band tracks the actual scatter of the data across the whole Froude range, instead of being uniformly too wide at low speeds (the defect of the constant-variance model) or collapsing to near zero (the log-log model). Because $\delta<1$, the low-Froude band does not shrink all the way to a point as the lognormal log-log band does; the symmetric additive error therefore places a non-trivial amount of predictive probability below zero at the lowest-Froude points (about 13% averaged over the observed design points), which is clipped only for display. The positive-support Gamma sensitivity fit in Part 3 removes this mass entirely at the cost of wider low-Froude bands, while leaving the substantive conclusions unchanged.
+The main visible difference is therefore not a dramatic change in the mean curve, but a cleaner original-scale uncertainty statement. The Gamma band remains non-negative and adapts its width to the resistance level, while the constant-variance comparison in Part 3 used a single absolute scale and was strongly rejected by WAIC/PSIS-LOO. The updated posterior predictive check therefore reinforces the current Task 3 conclusion: learning heteroscedasticity is essential, but once the positive-support Gamma likelihood is used, the Froude exponent stays near the log-log estimate and the `beam_draught` effect is not credibly resolved.
 
-**Conclusion of part 4.** The two predictive families differ mainly in how their uncertainty scales with resistance. The log-log model imposes strictly multiplicative ($\delta=1$) uncertainty, which is positive by construction but too tight at low speed and too flat in the mean at high speed; the heteroscedastic nonlinear model **estimates** the variance growth ($\delta\approx0.4$) and so adapts its band to the data, while also recovering the steeper high-Froude trend and making the selected hull covariate visible. The comparison reinforces part 3: inference on the Froude exponent and on `beam_draught` is strongly driven by the error model, and explicitly learning the variance — rather than fixing it — is what makes the predictive bands track the data across the whole Froude range.
+**Conclusion of part 4.** Both posterior predictive families respect the positivity of resistance, and both show uncertainty increasing with the Froude-driven mean. The log-log model imposes multiplicative uncertainty through the transformation; the Gamma M1 model estimates the variance growth on the original scale. The comparison with the observed data supports the heteroscedastic treatment while also showing that the robust conclusion is the Froude power law itself, not a strong hull-geometry effect.
 
 ## Train/test validation check
 
@@ -1423,7 +1458,7 @@ loglog_test_score <- function(fit, newdata, y_new, n_draws = 5000, seed = 2026) 
     mean_band_width = mean(pp$upper - pp$lower))
 }
 
-## Test-set posterior predictive log density for the nonlinear models.
+## Test-set posterior predictive log density for the nonlinear Gamma models.
 ## For learned variance, sigma_i = sigma0 * mu_i^delta; for the homoscedastic
 ## comparison delta is pinned to zero in fit_M1_homo.
 nonlinear_test_score <- function(fit, X_new, y_new, n_draws = 5000, seed = 2026) {
@@ -1435,8 +1470,8 @@ nonlinear_test_score <- function(fit, X_new, y_new, n_draws = 5000, seed = 2026)
   mu <- exp(eta)
   sigma <- d[, "sigma0"] * exp(d[, "delta"] * eta)
 
-  ll <- dnorm(matrix(y_new, n_draws, length(y_new), byrow = TRUE),
-              mean = mu, sd = sigma, log = TRUE)
+  ll <- dgamma(matrix(y_new, n_draws, length(y_new), byrow = TRUE),
+               shape = (mu / sigma)^2, rate = mu / (sigma * sigma), log = TRUE)
   pp <- predict_nonlinear(fit, X_new, n_draws = 3000)
 
   c(total_lpd = sum(apply(ll, 2, log_mean_exp)),
@@ -1457,15 +1492,15 @@ test_X1 <- cbind(intercept = 1,
 
 validation_table <- rbind(
   `log-log posterior predictive` = loglog_test_score(fit, test_loglog, yh_test$resistance),
-  `M1 constant variance posterior predictive` = nonlinear_test_score(fit_M1_homo, test_X1, yh_test$resistance),
-  `M1 learned variance posterior predictive` = nonlinear_test_score(fit_M1, test_X1, yh_test$resistance)
+  `Gamma M1 constant variance posterior predictive` = nonlinear_test_score(fit_M1_homo, test_X1, yh_test$resistance),
+  `Gamma M1 learned variance posterior predictive` = nonlinear_test_score(fit_M1, test_X1, yh_test$resistance)
 )
 
 round(validation_table, 3)
 
 ## Visual validation on the held-out rows: observed test responses against the
-## posterior predictive intervals from each model. Points near the 45-degree line
-## and inside their intervals indicate calibrated test-set prediction.
+## posterior predictive intervals from each model. Predictive means near the
+## black points and intervals containing them indicate calibrated test prediction.
 test_pred_loglog <- draw_loglog_pred(fit, test_loglog, n_draws = 3000)
 test_pred_homo <- predict_nonlinear(fit_M1_homo, test_X1, n_draws = 3000)
 test_pred_het <- predict_nonlinear(fit_M1, test_X1, n_draws = 3000)
@@ -1500,14 +1535,38 @@ plot_validation <- function(file = NULL) {
   legend("topleft", bty = "n", pch = c(16, 16, 16, 16),
          col = c(rgb(0, 0, 0, 0.55), cols),
          legend = c("observed test response", "log-log predictive mean + 95% interval",
-                    "M1 constant variance predictive mean + 95% interval",
-                    "M1 learned variance predictive mean + 95% interval"))
+                    "Gamma M1 constant variance predictive mean + 95% interval",
+                    "Gamma M1 learned variance predictive mean + 95% interval"))
 
   if (!is.null(file)) dev.off()
 }
 
 plot_validation()
 plot_validation("figures/train_test_validation.pdf")
+
+plot_validation_widths <- function(file = NULL) {
+  if (!is.null(file)) pdf(file, width = 8.5, height = 5.2)
+  pred <- list(test_pred_loglog, test_pred_homo, test_pred_het)
+  widths <- vapply(pred, function(p) p$upper - p$lower,
+                   numeric(length(yh_test$resistance)))
+  ord <- order(yh_test$resistance)
+  x <- seq_along(ord)
+  yr <- range(widths, finite = TRUE)
+  plot(x, widths[ord, 1], type = "l", lwd = 2.2, col = "navy",
+       ylim = yr, xlab = "test observation (ordered by observed resistance)",
+       ylab = "95% posterior predictive interval width",
+       main = "Held-out predictive interval widths")
+  lines(x, widths[ord, 2], lwd = 2.2, col = "darkorange3")
+  lines(x, widths[ord, 3], lwd = 2.2, col = "firebrick")
+  legend("topleft", bty = "n", lwd = 2.2,
+         col = c("navy", "darkorange3", "firebrick"),
+         legend = c("log-log", "Gamma M1 constant variance",
+                    "Gamma M1 learned variance"))
+  if (!is.null(file)) dev.off()
+}
+
+plot_validation_widths()
+plot_validation_widths("figures/train_test_validation_widths.pdf")
 ```
 
-This train/test check is not used to replace the full-data posterior analysis. It is only a posterior predictive sanity check on the split rows. Higher log predictive density is better, while coverage and band width show calibration. The learned-variance nonlinear model is preferred when it gives the strongest test-set posterior predictive density and calibrated 95% intervals without simply inflating the bands. This agrees with the Part 4 plot: learning the heteroscedastic variance reallocates uncertainty across the Froude range instead of relying on point predictions from a separate frequentist fit.
+This train/test check is not used to replace the full-data posterior analysis. It is only a posterior predictive sanity check on the split rows. Higher log predictive density is better, while coverage and band width show calibration. The nonlinear scores are now evaluated under the same Gamma likelihood used in Task 3, so the validation is on the same positive-support predictive scale as the posterior predictive curves. The learned-variance Gamma model is preferred when it gives the strongest test-set posterior predictive density and calibrated 95% intervals without simply inflating the bands. This agrees with the Part 4 plot: learning the heteroscedastic variance reallocates uncertainty across the Froude range instead of relying on point predictions from a separate frequentist fit.
