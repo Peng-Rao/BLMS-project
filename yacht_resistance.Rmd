@@ -967,6 +967,31 @@ par(op)
 
 The diagnostics confirm that learning the variance corrects the heteroscedasticity. The **raw** residuals still fan out (their tertile spread ratio is well above 1) — this is the heteroscedasticity that defeated the constant-variance model. Once each residual is standardized by its own fitted $\hat\sigma_i=\hat\sigma_0\hat\mu_i^{\hat\delta}$, the funnel is largely removed: the scale-location curve is roughly flat, the standardized-residual spread is close to unity across fitted-value tertiles, the correlation between $|$standardized residual$|$ and the fitted value collapses from strongly positive (under a constant $\sigma$) to essentially zero, and about 95% of standardized residuals lie within the $\pm 2$ band. The fit is not flawless — a single power-law variance function cannot reproduce every feature of the spread — but it is a decisive improvement over the constant-variance model and is exactly the correction the project asks for.
 
+For a like-for-like comparison with the part-1 log-log diagnostics (which live on the log scale), we also plot the part-3 fit's residuals on the **log scale**: the fitted log-resistance $\log\hat\mu_i$ (the linear predictor) against the log residual $\log y_i-\log\hat\mu_i$. These are the same axes as the part-1 "Residuals vs fitted" panel, so the two mean curves can be compared directly even though part 3 is steeper ($\gamma_F\approx6.4$ vs $\beta_F\approx4.7$).
+
+```{r task3-resid-log, fig.width=10, fig.height=4.4}
+## log-scale residuals for the part-3 fit, on the same axes as the part-1 plot
+logfit_M1   <- log(fitted_M1)              # = X1 %*% th_hat  (fitted log-resistance)
+logresid_M1 <- log(y_res) - logfit_M1      # log(y) - log(mu_hat)
+
+cat(sprintf("cor(|log residual|, fitted log-resistance) = %.3f\n",
+            cor(abs(logresid_M1), logfit_M1)))
+
+op <- par(mfrow = c(1, 2), mar = c(4.2, 4.2, 2.2, 1))
+plot(logfit_M1, logresid_M1, pch = 16, cex = 0.6, col = rgb(0, 0, 0, 0.45),
+     xlab = "fitted log(resistance)", ylab = "log residual",
+     main = "Residuals vs fitted (log scale, part 3)")
+abline(h = 0, col = "firebrick")
+lines(lowess(logfit_M1, logresid_M1), col = "navy", lwd = 2)
+
+qqnorm(logresid_M1, pch = 16, cex = 0.6, col = rgb(0, 0, 0, 0.45),
+       main = "Normal Q-Q (log residuals, part 3)")
+qqline(logresid_M1, col = "firebrick")
+par(op)
+```
+
+Read against the part-1 figure, this puts both fits on identical axes. On the log scale the part-3 residuals show a *pronounced* shrinking-variance pattern — the printed correlation between $|\log\text{ residual}|$ and the fitted value is about $-0.90$, an even stronger trend than part 1 showed. This is exactly what an *additive* original-scale model must look like through a log lens: a roughly fixed absolute error becomes a small *relative* error at large resistance. So each model looks well-behaved on its own scale and heteroscedastic on the other — which is precisely why the original-scale diagnostics above are the proper goodness-of-fit check for the part-3 model, while this log-scale view is included only for direct comparison with part 1.
+
 **Conclusion of part 3.** Modelling the variance as $\sigma_i=\sigma_0\mu_i^{\delta}$ and learning $\delta$ delivers a genuine heteroscedasticity correction: $\delta\approx0.4$ is credibly positive, the learned-variance model beats its constant-variance counterpart by a large WAIC/PSIS-LOO margin, and the original-scale residual diagnostics flatten out. This correction also reshapes the inference. The Froude exponent is strongly error-model-dependent — $\beta_F\approx4.69$ (log-log, $\delta$ effectively 1), $\gamma_F\approx7.2$ (additive constant variance, $\delta=0$), and $\gamma_F\approx6.4$ once $\delta$ is learned — so honestly reporting the variance assumption is essential. The hull covariate selected in part 2 is supported: M1 beats M0 on WAIC/PSIS-LOO and $\beta_B$ is credibly negative ($P(\beta_B<0\mid y)\approx0.99$), i.e. a wider beam relative to draught reduces residuary resistance per unit displacement at fixed Froude number — sharpening part 2's verdict that the weak BAS evidence for `beam_draught` reflected the misspecified homoscedastic likelihood, not an absence of signal.
 
 ### Posterior predictive check: constant vs learned variance

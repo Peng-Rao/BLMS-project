@@ -170,46 +170,47 @@ For any moderately diffuse physical prior ($\tau\ge0.1$) the likelihood dominate
 \section{BAS/BMA model selection over hull covariates}
 \label{sec:bma}
 
-The first part establishes the dominant physical relationship: after taking
-logs, the resistance is essentially a power law of the Froude number. The
-second question is conditional on that fact: once $\log(Fn)$ is already in the
-model, which hull-geometry variables still carry independent signal?
+\subsection{Model space and forced Froude effect}
 
-We address this with Bayesian model averaging using \texttt{bas.lm}. The model
-space contains the five optional geometry covariates
-\texttt{LCB}, \texttt{prismatic}, \texttt{L\_disp}, \texttt{beam\_draught} and
-\texttt{L\_beam}. Therefore the number of candidate submodels is only
-$2^5=32$. The term $\log(Fn)$ is forced into every model, because the project is
-not asking whether speed matters; it is asking which hull covariates matter
-\emph{after} speed has been accounted for. In the R code this is enforced with
-\texttt{include.always = \textasciitilde{} log\_Fr}, while the five hull terms
-are left optional.
+The log--log regression in \cref{sec:loglog} establishes that the dominant
+physical scaling is the Froude power law. The model-selection question is
+therefore conditional on Froude: after $\log(\mathrm{Froude})$ has been
+included, do any hull-geometry variables still carry independent information
+about $\log(\mathrm{resistance})$? For this reason the term
+$\log(\mathrm{Froude})$ is forced into every candidate model; the BAS/BMA step is
+not intended to test whether speed matters, but to identify possible secondary
+hull effects after speed has been accounted for.
 
-The main diagnostic is the posterior inclusion probability (PIP). A PIP is the
-posterior probability that a covariate is included in the true regression model,
-after averaging over all 32 submodels. Hence a large PIP indicates that the
-variable repeatedly appears in high-posterior-probability models, while a small
-PIP means that the data do not strongly need that variable once the other terms
+The optional covariates are the five hull form factors \texttt{LCB},
+\texttt{prismatic}, \texttt{L\_disp}, \texttt{beam\_draught} and
+\texttt{L\_beam}. They are treated as optional because the full log--log
+regression does not resolve any of them individually: their credible intervals
+cross zero, and the form factors are strongly related across the limited set of
+$22$ hull designs. With five optional variables, the model space contains only
+$2^5=32$ submodels. We can therefore enumerate the whole space with
+\texttt{bas.lm}, using \texttt{include.always = \textasciitilde{} log\_Fr} and a
+uniform prior over the 32 hull-covariate submodels.
+
+This averaging approach is preferable to interpreting only the full regression
+coefficients. The full model conditions on all five hull covariates being
+present simultaneously, even though they are correlated and weakly identified.
+BAS/BMA instead averages over all possible subsets and reports, for each
+covariate, its posterior inclusion probability (PIP): the posterior probability
+that the covariate belongs in the regression model, conditional on
+$\log(\mathrm{Froude})$ being included.
+
+\subsection{Baseline BAS/BMA results}
+
+The baseline analysis uses the BIC marginal-likelihood approximation in
+\texttt{bas.lm} with a uniform model prior. The resulting PIPs are shown in
+\cref{tab:bma_pip}. A large PIP would indicate that a covariate appears
+repeatedly in high-posterior-probability models, while a small PIP means that
+the data do not require that term once Froude and the competing hull variables
 are considered.
-
-Using the BIC approximation to the marginal likelihood, the highest posterior
-model is the one containing $\log(Fn)$ and \texttt{beam\_draught}, but its
-posterior probability is not dominant. The approximate PIPs are reported in
-\cref{tab:bma_pip}. The largest value is for \texttt{beam\_draught}, but even
-there the evidence is only moderate. The remaining covariates have weak
-inclusion probabilities. Thus the BAS/BMA conclusion is deliberately cautious:
-the Froude power law is the stable signal; the hull-form variables may have
-secondary effects, but no individual hull covariate is strongly identified by
-the homoscedastic log--log regression.
-
-This agrees with the full-model coefficient intervals in \cref{tab:loglog},
-where all five hull coefficients have 95\% credible intervals crossing zero.
-BAS/BMA strengthens that interpretation because it checks the whole model space
-instead of relying on one full regression model.
 
 \begin{table}[H]
 	\centering
-	\caption{Approximate posterior inclusion probabilities for the five optional hull-geometry covariates when $\log(Fn)$ is forced into every model. Values are based on enumeration of the $2^5=32$ submodels using a BIC marginal-likelihood approximation, matching the \texttt{prior = "BIC"} specification in \texttt{bas.lm}.}
+	\caption{Approximate posterior inclusion probabilities for the five optional hull-geometry covariates when $\log(\mathrm{Froude})$ is forced into every model. Values are based on enumeration of the $2^5=32$ submodels using the BIC marginal-likelihood approximation, matching the baseline \texttt{prior = "BIC"} specification in \texttt{bas.lm}.}
 	\label{tab:bma_pip}
 	\begin{tabular}{l r l}
 		\toprule
@@ -224,9 +225,236 @@ instead of relying on one full regression model.
 	\end{tabular}
 \end{table}
 
+The largest PIP is for \texttt{beam\_draught}, approximately $0.57$. This is
+moderate evidence, not decisive evidence: the variable is the most plausible
+secondary hull covariate under the baseline prior, but it is far from being
+overwhelmingly selected. The other four hull variables have PIPs well below
+$0.50$, so their evidence is weak conditional on $\log(\mathrm{Froude})$. This
+agrees with the full-model coefficient intervals in \cref{tab:loglog}, but is
+more defensible because it checks the whole model space rather than relying on a
+single saturated regression.
+
+\subsection{Sensitivity to prior choices}
+
+Because the baseline PIPs are modest, the BAS/BMA conclusion was checked under
+alternative BAS/BMA prior specifications. The same model space was enumerated in
+each run: $\log(\mathrm{Froude})$ was forced into every model, the five hull
+covariates were optional, and the model prior over the $2^5=32$ submodels was
+kept uniform. The prior specifications compared were the baseline
+\texttt{BIC / reference} approximation, Zellner's \texttt{g-prior (g = n)}, and
+the heavy-tailed \texttt{JZS} prior. The resulting PIPs are reported in
+\cref{tab:bas_sensitivity}.
+
+\begin{table}[h]
+	\centering
+	\resizebox{\textwidth}{!}{%
+	\begin{tabular}{l c c c c c}
+		\toprule
+		\textbf{Prior specification} & \textbf{LCB} & \textbf{prismatic} & \textbf{L\_disp} & \textbf{beam\_draught} & \textbf{L\_beam} \\
+		\midrule
+		\texttt{BIC / reference}     & $0.210$      & $0.265$            & $0.206$          & $0.565$                & $0.192$          \\
+		\texttt{g-prior (g = n)}     & $0.186$      & $0.217$            & $0.182$          & $0.499$                & $0.166$          \\
+		\texttt{JZS}                 & $0.060$      & $0.057$            & $0.051$          & $0.243$                & $0.042$          \\
+		\bottomrule
+	\end{tabular}
+	}
+	\caption{Sensitivity of posterior inclusion probabilities to alternative BAS/BMA prior specifications.}
+	\label{tab:bas_sensitivity}
+\end{table}
+
+The sensitivity analysis reinforces the need for caution. The robust conclusion
+is not that \texttt{beam\_draught} is definitely selected. In fact, no hull
+covariate reaches $\mathrm{PIP}\ge0.50$ under all three prior specifications,
+and the magnitude of the inclusion probabilities changes noticeably. The robust
+conclusion is instead that all hull covariates are much weaker than the forced
+Froude effect once $\log(\mathrm{Froude})$ is included. At the same time,
+\texttt{beam\_draught} remains the best-supported secondary covariate in the
+baseline analysis and the top-ranked hull covariate in each sensitivity run, so
+it remains a reasonable candidate rather than an arbitrary choice. The observed
+prior sensitivity motivates a cautious interpretation; it does not invalidate
+the analysis, but it prevents any strong claim that a hull covariate has been
+unambiguously selected.
+
+\subsection{Interpretation and link with the nonlinear model}
+
+Overall, BAS/BMA suggests that \texttt{beam\_draught} is the most defensible
+secondary covariate, while the Froude power law remains the dominant robust
+signal. This gives a coherent reduced modelling strategy for the next section:
+the heteroscedastic nonlinear analysis should compare a Froude-only model
+$M_0$ with a model $M_1$ that also includes \texttt{beam\_draught}. In this
+workflow, BAS/BMA proposes the candidate hull covariate, and the nonlinear
+original-scale model checks whether that covariate improves posterior
+predictive performance once the variance growth with resistance is modelled
+explicitly.
+
 \newpage
 
 \section{Heteroscedasticity-Corrected Nonlinear Model}
+
+
+\subsection{Nonlinear model}
+
+Following the BAS/BMA analysis, the only hull-form variable carried forward was the beam-draught ratio with posterior inclusion probability was about $0.565$, so the evidence was moderate rather than strong. 
+Therefore, we fitted both a Froude-only model \textbf{M0} and a model including beam-draught \textbf{M1}, but the main heteroscedastic nonlinear model was
+\[
+Y_i \mid \theta,\sigma_0,\delta
+\sim
+N(\mu_i,\sigma_i^2),
+\]
+where $Y_i$ is the observed residuary resistance and
+\[
+\mu_i
+=
+k\,\mathrm{Froude}_i^{\gamma_F}
+\exp\{\beta_B\,\mathrm{bd}_i\}.
+\]
+
+where $\mathrm{bd}_i$ is the beam--draught ratio (\texttt{beam\_draught}), and
+$k>0$ is the multiplicative constant of the power law. 
+To model heteroscedasticity, we did not assume a constant variance. Instead, we used
+\[
+\sigma_i = \sigma_0 \mu_i^\delta .
+\]
+The parameter $\delta$ controls how fast the standard deviation grows with the fitted mean. 
+If $\delta=0$, then the model reduces to a homoscedastic additive-error model on the original scale. 
+If $\delta=1$, then the standard deviation is proportional to the mean, which is close to the multiplicative-error interpretation of the log-log model. 
+
+
+The parameters to be estimated are the constant $k$, the Froude exponent $\gamma_F$, the
+hull-coefficient $\beta_B$, the baseline noise level $\sigma_0$, and the
+\textbf{variance-growth exponent} $\delta$. We have include the test of heteroscedasticity correction
+by comparing the fixed version of the variance ($\delta=0$) and version with learned variance with WAIC and PSIS-LOO tests.
+
+For computation, the mean was rewritten in exponential form:
+\[
+\mu_i
+=
+\exp\{\log k+\gamma_F \log(\mathrm{Froude}_i)+\beta_B \mathrm{bd}_i\}.
+\]
+In the implementation we centered $\log(\mathrm{Froude})$ and beam-draught before fitting the model. 
+Writing
+$\log\mathrm{Froude}_i = m_F + \tilde{x}_{F,i}$ and
+$\mathrm{bd}_i = m_B + \tilde{x}_{B,i}$ and absorbing the constants into a single
+intercept $b_0$,
+\begin{equation}
+  b_0 = \log k + \gamma_F m_F + \beta_B m_B,
+  \label{eq:t3-b0}
+\end{equation}
+\begin{equation}
+  \mu_i
+  = \exp\!\big\{b_0 + \gamma_F\,\tilde{x}_{F,i} + \beta_B\,\tilde{x}_{B,i}\big\}.
+  \label{eq:t3-centred}
+\end{equation}
+Centring relabels the intercept but leaves the slopes $\gamma_F$ and $\beta_B$
+untouched, so it does not change the inference on the quantities of physical
+interest. After sampling, the physical constant is recovered draw by draw from
+\begin{equation}
+  k = \exp\!\big\{b_0 - \gamma_F m_F - \beta_B m_B\big\}.
+  \label{eq:t3-k}
+\end{equation}
+
+
+
+
+\subsection{Prior distributions}
+\label{sec:t3-prior}
+
+All priors are weakly informative and mutually independent. For the mean
+parameters,
+\begin{equation}
+  b_0 \sim \mathcal{N}(0,10^2),
+  \qquad
+  \gamma_F \sim \mathcal{N}(4,2^2),
+  \qquad
+  \beta_B \sim \mathcal{N}(0,2^2).
+  \label{eq:t3-prior-mean}
+\end{equation}
+The prior on $\gamma_F$ is centred at the physical value $4$. For the variance function,
+\begin{equation}
+  \log\sigma_0 \sim \mathcal{N}(0,10^2),
+  \qquad
+  \delta \sim \mathcal{N}(0,1^2).
+  \label{eq:t3-prior-var}
+\end{equation}
+The prior on $\delta$ is centred at $0$, i.e.\ at homoscedasticity, precisely so
+that any evidence of variance growth comes from the data and not from the prior.
+As a sensitivity check on the headline quantity, the $\gamma_F$ prior is also
+replaced by a vague $\mathcal{N}(0,10^2)$ and by an informative
+$\mathcal{N}(4,0.5^2)$.
+
+\subsection{Posterior sampling algorithm}
+\label{sec:t3-algorithm}
+
+Unlike log-log linear model, the posterior distribution is not availiable in closed form.
+The likelihood contains a nonlinear exponential mean, and the variance also depends on the mean through $\sigma_i=\sigma_0\mu_i^\delta$. Because of this non-conjugacy, we used MCMC in JAGS.
+
+For this model JAGS automatically assigned the univariate slice sampler to the continuous parameters.
+
+We run four independent chains, started from dispersed values of $\gamma_F$ ( $3,6,5,4$) and of $\delta$ (values $0,1,0.5,1.2$)
+Each chain uses an adaptation phase, a burn-in that is discarded, and a thinned sampling phase.
+If chains launched from very different points all settle on the same
+distribution, that is good evidence the sampler has reached the posterior rather
+than a starting-value-dependent region.
+
+\subsection{Convergence diagnostics}
+\label{sec:t3-convergence}
+
+Before doing any intrepretion from posterior distribution or sampling from posterior, we should check wheter our proposed model has converged.
+We checked the converges of the non-linear with several different methods. First we check Gelman--Rubin statistic $\hat{R}$. This compares the variance
+between the dispersed chains to the variance within each chain. If the chains have all converged to the same distribution the two variances agree.
+Secondly, we check Effective sample size (ESS). Successive MCMC draws are autocorrelated, so $N$ kept draws carry less information than $N$ independent ones. The ESS estimates the equivalent number of independent draws; we want it in the thousands so that posterior means and quantiles are estimated with little Monte-Carlo error.
+Trace plots, for each parameter the four chains should look like
+        stationary noise fluctuating around a common, fixed level, with the
+        chains overlapping rather than drifting or sitting at separate values.
+Finally, Autocorrelation function (ACF), For each parameter the autocorrelation of the chain should decay to zero within a few lags.
+
+\begin{table}[ht]
+\centering
+\caption{Convergence diagnostics for the heteroscedastic nonlinear model M1 under the main prior.}
+\label{tab:m1-convergence}
+\begin{tabular}{lcc}
+\hline
+Parameter & $\hat{R}$ & Effective sample size \\
+\hline
+$\delta$   & 1.0000 & 2208  \\
+$\sigma_0$ & 1.0000 & 3284  \\
+$b_0$      & 1.0002 & 4409  \\
+$\gamma_F$ & 0.9999 & 2182  \\
+$\beta_B$  & 1.0003 & 13012 \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+	\centering
+	\subfloat[Trace plots]{%
+		\includegraphics[width=0.49\textwidth]{figures/task3-diagnostics-1.pdf}}
+	\hfill
+	\subfloat[Posterior of $\beta_F$.]{%
+		\includegraphics[width=0.49\textwidth]{figures/task3-diagnostics-2.pdf}}
+	\caption{Trace plots of the variables, each color represents a chain.}
+	\label{fig:convergence}
+\end{figure}
+
+Table~\ref{tab:m1-convergence} reports the convergence diagnostics for the main M1 run. All Gelman--Rubin statistics are essentially equal to one, indicating that the independently initialized chains are sampling from the same posterior distribution. The effective sample sizes are also sufficiently large for posterior inference, especially for $\beta_B$.
+Figure~\ref{fig:convergence} shows that different chains overlap on the plot and look stationary noices, it shows that every chained mixed with the given sampling numbers, and ACF decays to zero in few lags.
+
+
+\subsection{Posterior analysis}
+\label{sec:t3-posterior}
+
+\subsection{Model comparison}
+\label{sec:t3-modelcomp}
+
+We use two questions to validate the modelling choices, both answered with
+WAIC and PSIS-LOO computed from the pointwise log-likelihood
+$\log p(y_i\mid\bm{\theta}^{(s)})$ of the MCMC draws (lower WAIC/LOOIC is
+better; PSIS-LOO additionally returns Pareto-$\hat k$ diagnostics that warn of
+overly influential observations).\\
+
+First question is that was the BAS analysis true?
+
+Second question is was learned variance correct the heteroscedasticity.
 
 \section{Posterior Predictive Curves}
 \label{sec:posterior_predictive}
