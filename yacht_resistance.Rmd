@@ -782,18 +782,15 @@ cat("log-log beam_draught 95% CI: [",
 ```{r task3-gamma-plot, fig.width=13, fig.height=4.6}
 op <- par(mfrow = c(1, 3), mar = c(4.2, 4.2, 2, 1))
 
-## gamma_F (heteroscedastic M1) vs beta_F (log-log, closed-form Student-t)
+## gamma_F (heteroscedastic M1)
 dg <- density(gF_draws)
 plot(dg, col = "firebrick", lwd = 2.4, xlim = c(3.9, max(dg$x)),
-     main = "Froude exponent under the two error models",
+     main = expression("Posterior of "*gamma[F]*" (heteroscedastic, M1)"),
      xlab = expression(gamma[F]), ylab = "posterior density")
-curve(dt((x - bF) / se, df) / se, from = 4.3, to = 5.1,
-      n = 400, col = "navy", lwd = 2.4, add = TRUE)
 abline(v = 4, lty = 2)
-legend("top", bty = "n", lwd = c(2.4, 2.4, 1), col = c("firebrick", "navy", "black"),
-       lty = c(1, 1, 2),
+legend("topright", bty = "n", lwd = c(2.4, 1), col = c("firebrick", "black"),
+       lty = c(1, 2),
        legend = c(expression(gamma[F]*" (heteroscedastic, M1)"),
-                  expression(beta[F]*" (log-log, part 1)"),
                   expression(gamma[F] == 4)))
 
 ## beam_draught effect: credible once the error model is corrected
@@ -803,15 +800,14 @@ plot(density(bB_draws), col = "firebrick", lwd = 2.4,
 abline(v = 0, lty = 2)
 abline(v = quantile(bB_draws, c(.025, .975)), col = "firebrick", lty = 3)
 
-## variance-growth exponent delta: 0 = homoscedastic, 1 = multiplicative
+## variance-growth exponent delta: 1 = multiplicative (delta = 0 marker removed)
 plot(density(dl_draws), col = "firebrick", lwd = 2.4,
      main = expression("Posterior of "*delta*" (variance growth)"),
      xlab = expression(delta), ylab = "posterior density")
-abline(v = c(0, 1), col = c("navy", "grey50"), lty = c(2, 3), lwd = c(2, 1))
-legend("topright", bty = "n", lwd = c(2, 1), lty = c(2, 3),
-       col = c("navy", "grey50"),
-       legend = c(expression(delta == 0*" (homoscedastic)"),
-                  expression(delta == 1*" (multiplicative)")))
+abline(v = 1, col = "grey50", lty = 3, lwd = 1)
+legend("topright", bty = "n", lwd = 1, lty = 3,
+       col = "grey50",
+       legend = expression(delta == 1*" (multiplicative)"))
 par(op)
 save_current_pdf("task3-gamma-plot.pdf", width = 13, height = 4.6)
 ```
