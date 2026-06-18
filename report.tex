@@ -443,6 +443,54 @@ Figure~\ref{fig:convergence} shows that different chains overlap on the plot and
 \subsection{Posterior analysis}
 \label{sec:t3-posterior}
 
+\Cref{tab:t3-post} reports the posterior summaries for M1, and
+the marginal posteriors of the three parameters of interest are shown in
+\cref{fig:t3-post}.
+
+\begin{table}[H]
+  \centering
+  \caption{Posterior summaries for the heteroscedastic nonlinear model M1
+    (Froude $+$ \texttt{beam\_draught}), pooled over four chains; $k$ is the
+    back-transformed physical constant from \cref{eq:t3-k}.}
+  \label{tab:t3-post}
+  \begin{tabular}{l r r r r r}
+    \toprule
+    \textbf{Parameter} & \textbf{Mean} & \textbf{SD} & \textbf{2.5\%} & \textbf{50\%} & \textbf{97.5\%} \\
+    \midrule
+    $k$        & $10093.6$ & $1493$ & $ 7269.8$ & $10056.4$ & $13114$ \\
+    $\gamma_F$ & $6.4186$ & $0.1401$ & $6.1204$ & $6.4247$ & $6.6778$ \\
+    $\beta_B$  & $-0.0463$ & $0.0173$ & $-0.0797$ & $-0.0466$ & $ -0.0111$ \\
+    $\sigma_0$ & $0.7475$ & $0.0418$ & $0.6673$ & $0.7470$ & $0.8318$ \\
+    $\delta$   & $0.3950$ & $0.0302$ & $0.3397$ & $0.3932$ & $0.4595$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+
+
+We also performed a prior sensitivity check for $\gamma_F$ to check the proposed physical value 4.
+\[
+\gamma_F \sim N(4,2^2).
+\]
+To see whether the posterior estimate was mainly driven by this prior, we repeated the analysis with a vague prior, $N(0,10^2)$, and with a more informative prior, $N(4,0.5^2)$. The posterior mean was about $6.44$ under the vague prior and about $6.23$ under the informative prior. Thus, the informative prior pulls the estimate slightly toward 4, but even then the posterior remains clearly above 4. This suggests that the conclusion $\gamma_F>4$ is mainly driven by the likelihood and the chosen error model, not only by the prior.
+
+\begin{table}[H]
+  \centering
+  \caption{Prior sensitivity of the Froude exponent $\gamma_F$ in M1 under three
+    priors. The posterior is essentially unchanged, so the result is
+    likelihood-driven.}
+  \label{tab:t3-sens}
+  \begin{tabular}{l r r r}
+    \toprule
+    \textbf{Prior on $\gamma_F$} & \textbf{Mean} & \textbf{2.5\%} & \textbf{97.5\%} \\
+    \midrule
+    $\mathcal{N}(4,2^2)$ (main)        & $6.4186$ & $0.1401$ & $6.6778$ \\
+    $\mathcal{N}(0,10^2)$ (vague)      & $6.4404$ & $0.1388$ & $6.7035$ \\
+    $\mathcal{N}(4,0.5^2)$ (informative) & $6.2302$ & $0.1556$ & $6.5187$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
 \subsection{Model comparison}
 \label{sec:t3-modelcomp}
 
