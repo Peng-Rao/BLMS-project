@@ -86,9 +86,31 @@ backend=biber]{biblatex}
 \section{Data and Problem}
 \label{sec:intro}
 
-We analyse the \emph{Yacht Hydrodynamics} dataset from the UCI Machine Learning Repository \autocite{ortigosa2007yacht,gerritsma1981delft}: $22$ sailing-yacht hull forms tested at several speeds, for $n=308$ observations. Each row holds five hull \emph{form factors} --- \texttt{LCB}, \texttt{prismatic}, \texttt{L\_disp}, \texttt{beam\_draught} and \texttt{L\_beam} (constant within a hull) --- and the dimensionless \textbf{Froude number} $Fn=v/\sqrt{gL}\in[0.125,0.45]$; the response is the residuary resistance per unit weight of displacement (\cref{tab:variables}).
+We analyse the \emph{Yacht Hydrodynamics} dataset from the UCI Machine Learning
+Repository \autocite{ortigosa2007yacht,gerritsma1981delft}. The data come from
+towing-tank experiments on the Delft systematic yacht hull series. Each
+observation corresponds to one hull form tested at one speed. The
+response variable is the residuary resistance per unit weight of displacement,
+while the predictors describe two different aspects of the experiment: the
+speed, measured by the dimensionless Froude number
+$Fn=v/\sqrt{gL}\in[0.125,0.45]$, and the hull geometry, summarized by five form
+factors: \texttt{LCB}, \texttt{prismatic}, \texttt{L\_disp},
+\texttt{beam\_draught} and \texttt{L\_beam} (\cref{tab:variables}). The hull
+variables are constant within a hull, whereas the Froude number changes across
+the towing-tank runs.
 
-For slender hulls, physics predicts a power law $\mathrm{resistance}\propto Fn^{\,\gamma_F}$ with $\gamma_F\approx4$. We study it in a Bayesian framework:
+The scientific question is motivated by hydrodynamic theory. For sailing yachts,
+residuary resistance is expected to follow an approximate power law in the
+Froude number,
+\[
+	\mathrm{resistance}\propto Fn^{\gamma_F},
+\]
+with exponent close to $4$ in the bulk regime. The project asks whether this
+relationship is visible in the data, which hull-geometry variables still matter
+after accounting for speed, and how the inference changes once the clear
+heteroscedasticity in resistance is modelled directly.
+
+We address these questions in a Bayesian framework:
 \begin{enumerate}
 	\setlength\itemsep{1pt}
 	\item log--log regression to estimate and \emph{verify} $\hat\beta_F\approx4$, with a prior-sensitivity check;
