@@ -400,9 +400,8 @@ than a starting-value-dependent region.
 \label{sec:t3-convergence}
 
 Before doing any interpretation from the posterior distribution or sampling from the posterior, we should check whether our proposed model has converged.
-We checked the convergence of the nonlinear model with several different methods. First we check the Gelman--Rubin statistic $\hat{R}$. This compares the variance
-between the dispersed chains to the variance within each chain. If the chains have all converged to the same distribution the two variances agree.
-Secondly, we check Effective sample size (ESS). Successive MCMC draws are autocorrelated, so $N$ kept draws carry less information than $N$ independent ones. The ESS estimates the equivalent number of independent draws; we want it in the thousands so that posterior means and quantiles are estimated with little Monte-Carlo error.
+We checked the convergence of the nonlinear model with several different methods. First we check the Gelman--Rubin statistic $\hat{R}$. 
+Secondly, we check Effective sample size (ESS). 
 Trace plots, for each parameter the four chains should look like
         stationary noise fluctuating around a common, fixed level, with the
         chains overlapping rather than drifting or sitting at separate values.
@@ -491,11 +490,11 @@ model.
 The hull covariate is weak under this model. The beam-draught coefficient is
 $\beta_B\approx0.05$, but its $95\%$ credible interval $[-0.013,0.113]$ contains
 zero ($\Pr(\beta_B<0\mid\bm{y})\approx0.06$), so it is not credibly different from
-zero. In other words, once the positive-support Gamma likelihood is used, the
-moderate BAS evidence for \texttt{beam\_draught} does not become a credible
-physical effect.
-
-We also performed a prior sensitivity check for $\gamma_F$ to test the proposed physical value 4. The main prior is $\gamma_F\sim\mathcal N(4,2^2)$. To see whether the posterior estimate was mainly driven by this prior, we repeated the analysis with a vague prior, $\mathcal N(0,10^2)$, and with a more informative prior, $\mathcal N(4,0.5^2)$. The posterior mean was about $4.82$ under the vague prior and about $4.80$ under the informative prior, essentially unchanged from the main prior. This shows that the conclusion $\gamma_F\approx4.8$ is driven by the likelihood and the data, not by the prior.
+zero. 
+We also performed a prior sensitivity check for $\gamma_F$ to test the proposed physical value 4. 
+The main prior is $\gamma_F\sim\mathcal N(4,2^2)$. To see whether the posterior estimate was mainly driven by this prior, 
+we repeated the analysis with a vague prior, $\mathcal N(0,10^2)$, and with a more informative prior, $\mathcal N(4,0.5^2)$. 
+The posterior mean was about $4.82$ under the vague prior and about $4.80$ under the informative prior, essentially unchanged from the main prior. This shows that the conclusion $\gamma_F\approx4.8$ is driven by the likelihood and the data, not by the prior.
 
 \begin{table}[H]
   \centering
@@ -531,10 +530,7 @@ scale their WAIC/PSIS-LOO are directly comparable.
 \begin{table}[h]
   \centering
   \caption{Likelihood sensitivity for M1: Gamma main model vs.\ additive Normal,
-    same mean and learned-variance structure. WAIC/LOOIC are on the
-    original resistance scale; the predictive columns are evaluated at the
-    observed design points. The two fit the data equally well; they differ in
-    support and in the inference on $\gamma_F$ and \texttt{beam\_draught}.}
+    same mean and learned-variance structure.}
   \label{tab:t3_lik_compare}
   \begin{tabular}{lcccccc}
     \toprule
