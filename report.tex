@@ -571,26 +571,10 @@ effects.
 \section{Posterior Predictive Curves}
 \label{sec:posterior_predictive}
 
-The final comparison is made on the original resistance scale, because this is
-where the data are observed and where the two error assumptions imply visibly
-different uncertainty bands. For a fair comparison, both curves in
-\cref{fig:posterior_predictive_curves} are posterior predictive curves: each
-posterior draw includes uncertainty in the mean curve and one new
-observation-level error term. The observed yacht-resistance data are overlaid on
-the same scale.
-
-For the log--log regression, the posterior predictive distribution is lognormal
-after transforming back to resistance. After drawing $(\bm{\beta},\sigma^2)$ from
-the posterior, replicated values are generated as
-\[
-	\log y_i^{\mathrm{rep}} \sim
-	\mathcal{N}(x_i^\top\bm{\beta},\sigma^2),
-	\qquad
-	y_i^{\mathrm{rep}}=\exp(\log y_i^{\mathrm{rep}}).
-\]
-For the heteroscedastic nonlinear M1 model, replicated values are generated on
-the original scale from the Gamma likelihood used in Task 3. The distribution is
-parameterized by a mean-dependent standard deviation,
+All posterior predictive comparisons are shown on the original resistance scale.
+The log--log model gives a lognormal predictive distribution after
+back-transformation, while the nonlinear M1 model uses the Gamma likelihood from
+Task 3,
 \[
 	y_i^{\mathrm{rep}} \sim \mathrm{Gamma}(\alpha_i,r_i),
 	\qquad
@@ -599,13 +583,9 @@ parameterized by a mean-dependent standard deviation,
 	\qquad
 	\sigma_i=\sigma_0\mu_i^\delta .
 \]
-Here $\alpha_i=(\mu_i/\sigma_i)^2$ and $r_i=\mu_i/\sigma_i^2$, so the
-posterior predictive distribution has mean $\mu_i$, standard deviation
-$\sigma_i$, and positive support.
-The displayed curves hold the hull form fixed at a representative value:
-\texttt{beam\_draught} is set to its sample median, while the other log--log
-hull covariates are set to their sample means. This isolates the
-Froude--resistance relationship instead of mixing different hull geometries.
+Here $\alpha_i=(\mu_i/\sigma_i)^2$ and $r_i=\mu_i/\sigma_i^2$. The curves in
+\cref{fig:posterior_predictive_curves} fix the hull form at representative
+values, so the comparison isolates the Froude--resistance relationship.
 
 \begin{figure}[H]
 	\centering
@@ -617,14 +597,11 @@ Froude--resistance relationship instead of mixing different hull geometries.
 	\label{fig:posterior_predictive_curves}
 \end{figure}
 
-The same posterior predictive simulations can be summarized over the original
-308 observations by checking empirical $95\%$ coverage and the average width of
-the predictive bands. These quantities are reported in \cref{tab:ppc_coverage}.
-The log--log model gives the widest intervals and slightly over-covers the data.
-The constant-variance Gamma M1 comparison is much too narrow, covering only
-$67.9\%$ of the observations. Allowing the Gamma M1 standard deviation to grow as
-$\sigma_i=\sigma_0\mu_i^\delta$ raises coverage to $93.2\%$ while keeping the
-average band width less than half of the log--log band width.
+\cref{tab:ppc_coverage} summarizes empirical $95\%$ coverage and average band
+width over the full data. The constant-variance Gamma M1 comparison is too
+narrow, covering only $67.9\%$ of observations. The learned-variance Gamma M1
+model raises coverage to $93.2\%$ with much narrower bands than the log--log
+model, showing that heteroscedasticity is needed but can be modelled efficiently.
 
 \begin{table}[H]
 	\centering
@@ -653,67 +630,20 @@ average band width less than half of the log--log band width.
 	\label{fig:posterior_predictive_widths}
 \end{figure}
 
-The log--log fit produces a lognormal predictive distribution after
-back-transformation. Its band is positive by construction, tight near zero
-resistance, and expands approximately multiplicatively as resistance grows. The
-Gamma M1 fit has the same positive-support property, but the variance growth is
-estimated directly on the original resistance scale. In the fitted model
-$\gamma_F\approx4.82$ and $\delta\approx0.89$, so the mean curve and uncertainty
-growth are close to the log--log result rather than dramatically different from
-it. The width comparison in \cref{fig:posterior_predictive_widths} makes the
-heteroscedasticity effect explicit: the learned-variance Gamma model expands the
-predictive band where resistance is large, unlike the constant-variance
-comparison.
+In the fitted Gamma M1 model, $\gamma_F\approx4.82$ and $\delta\approx0.89$.
+Thus the mean curve remains close to the log--log power law, but uncertainty is
+learned directly on the resistance scale. This supports the Task 3 conclusion:
+heteroscedasticity must be modelled, while \texttt{beam\_draught} is not a
+robustly resolved hull effect under the main likelihood.
 
-The important difference is interpretability on the original scale. The Gamma
-model learns $\sigma_i=\sigma_0\mu_i^\delta$ instead of imposing a constant
-absolute residual scale, and the constant-variance comparison in Task 3 was
-strongly rejected. At the same time, using the positive-support Gamma likelihood
-removes the impossible negative predictive tail of the additive-Normal
-sensitivity fit. Thus the posterior predictive curves support the updated Task 3
-conclusion: heteroscedasticity must be modelled, the Froude power law is stable,
-and \texttt{beam\_draught} is not a robustly resolved hull effect under the main
-likelihood.
-
-\section{Train/Test Validation}
+\subsection{Train/Test Validation}
 \label{sec:validation}
 
-As an additional predictive check, we also split the data randomly into training
-and test sets, using about $80\%$ of the observations for training and $20\%$ for
-testing. This validation is not used to replace the full-data Bayesian analysis:
-the scientific conclusions above are based on the posterior fitted to all 308
-observations. The split is only a held-out check of whether the posterior
-predictive distributions behave sensibly on unseen rows.
-
-The validation is kept on the same Bayesian scale as the posterior predictive
-curves. Instead of comparing only point predictions through RMSE or MAE, each
-candidate model is evaluated through its posterior predictive distribution on
-the test rows. For the log--log model, the predictive density is lognormal on the
-original resistance scale. For the nonlinear models, the predictive density is
-Gamma on the original scale, either with constant residual variance or with the
-learned heteroscedastic variance $\sigma_i=\sigma_0\mu_i^\delta$.
-
-For each test observation we compute the posterior predictive log density,
-\[
-	\log p(y_i^{\mathrm{test}}\mid y^{\mathrm{train}}),
-\]
-and then summarize the models by total log predictive density, mean log
-predictive density, $95\%$ predictive-interval coverage, and average predictive
-band width. Higher log predictive density indicates better held-out predictive
-accuracy. Coverage close to $95\%$ indicates calibrated uncertainty, while the
-band width checks whether good coverage is achieved efficiently rather than by
-making intervals unnecessarily wide.
-
-\begin{figure}[H]
-	\centering
-	\includegraphics[width=0.95\textwidth]{figures/train_test_validation.pdf}
-	\caption{Train/test posterior predictive validation on the held-out rows. The
-		black points are observed test responses ordered by resistance. Coloured
-		points show posterior predictive means, and vertical intervals show the
-		corresponding $95\%$ posterior predictive bands for the log--log model, the
-		constant-variance Gamma M1 model, and the learned-variance Gamma M1 model.}
-	\label{fig:train_test_validation}
-\end{figure}
+As a held-out check, we repeated the posterior predictive comparison on a random
+80/20 train/test split. The metrics in \cref{tab:validation_metrics} mirror the
+full-data result: constant variance under-covers, learned variance restores
+near-nominal coverage, and the log--log model achieves the highest held-out log
+predictive density but with much wider intervals.
 
 \begin{table}[H]
 	\centering
@@ -732,6 +662,14 @@ making intervals unnecessarily wide.
 	\end{tabular}
 \end{table}
 
+\clearpage
+\printbibliography[heading=bibintoc, title = {References}]
+
+\clearpage
+\appendix
+\section{Tables and Figures}
+\label{app:tables}
+
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.85\textwidth]{figures/train_test_validation_widths.pdf}
@@ -741,25 +679,6 @@ making intervals unnecessarily wide.
 		M1 intervals widen for larger responses.}
 	\label{fig:train_test_validation_widths}
 \end{figure}
-
-This validation supports the same interpretation as the posterior predictive
-curves. The constant-variance Gamma M1 comparison has the narrowest intervals,
-but its $71.0\%$ test coverage shows that this precision is spurious. The
-learned-variance Gamma M1 model corrects most of that under-coverage, reaching
-$93.5\%$ test coverage with a moderate mean band width of 6.055. The log--log
-model has the best held-out log predictive density and the highest coverage, but
-it does so with substantially wider intervals. Thus the validation checks both
-the location of the fitted curve and the uncertainty around it, confirming that
-the heteroscedasticity treatment improves calibration without reducing the
-comparison to a non-Bayesian point-fit exercise.
-
-\clearpage
-\printbibliography[heading=bibintoc, title = {References}]
-
-\clearpage
-\appendix
-\section{Appendix}
-\label{app:tables}
 
 \begin{table}[H]
 	\centering
