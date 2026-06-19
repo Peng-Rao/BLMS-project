@@ -107,6 +107,19 @@
 \newcommand{\bF}{\ensuremath{\beta_F}}
 \newcommand{\R}{\textsf{R}}
 
+% ---- section divider: a plain title slide at the start of each section
+\AtBeginSection[]{%
+  \begin{frame}[plain]
+    \centering
+    \vspace*{\fill}
+    {\usebeamercolor[fg]{structure}\large Part~\insertsectionnumber}\\[0.4em]
+    {\color{PoliCyan}\rule{0.5\textwidth}{1pt}}\\[0.5em]
+    {\usebeamerfont{title}\usebeamercolor[fg]{title}\LARGE\insertsectionhead\par}
+    {\color{PoliCyan}\rule{0.5\textwidth}{1pt}}
+    \vspace*{\fill}
+  \end{frame}
+}
+
 %=======================================================================
 %  TITLE METADATA
 %=======================================================================
@@ -156,6 +169,142 @@
 		\item Posterior Predictive
 		\item Conclusions
 	\end{enumerate}
+\end{frame}
+
+%=======================================================================
+\section{Data and Problem}
+%=======================================================================
+
+\begin{frame}{The Yacht Hydrodynamics dataset}
+	\begin{columns}[T]
+		\begin{column}{0.54\textwidth}
+			\textbf{Source.} UCI ML Repository --- Delft Systematic Yacht
+			Hull Series, towing-tank experiments.
+			\begin{itemize}
+				\item $22$ hull forms, each tested at several speeds
+				\item $n = 308$ observations (one hull $\times$ one speed per row)
+				\item \textbf{Response:} residuary resistance per unit weight of displacement
+				\item \textbf{Predictors:} speed (Froude number) $+$ five hull
+				      form factors, constant within a hull
+			\end{itemize}
+		\end{column}
+		\begin{column}{0.46\textwidth}
+			\footnotesize
+			\begin{block}{Variables}
+				\begin{tabular}{@{}ll@{}}
+					\texttt{LCB}           & centre of buoyancy (\%) \\
+					\texttt{prismatic}     & prismatic coefficient   \\
+					\texttt{L\_disp}       & length--displ.\ ratio   \\
+					\texttt{beam\_draught} & beam--draught ratio     \\
+					\texttt{L\_beam}       & length--beam ratio      \\[2pt]
+					\texttt{Froude}        & $\Fn = v/\sqrt{gL}$     \\[2pt]
+					\texttt{resistance}    & response (target)       \\
+				\end{tabular}
+			\end{block}
+			\scriptsize The five form factors vary only across the $22$ hulls;
+			$\Fn\in[0.125,0.45]$ is the dominant predictor.
+		\end{column}
+	\end{columns}
+\end{frame}
+
+%=======================================================================
+\section{Log--log Regression}
+%=======================================================================
+
+\begin{frame}{Model and reference prior}
+	\textbf{Goal.} Verify the physical power law $\mathrm{resistance}\propto\Fn^{\,\gamma_F}$
+	with $\gamma_F\approx4$. Taking logs makes the exponent a regression slope:
+	\begin{equation*}
+		\log(\mathrm{resistance}) = \beta_0 + \bF\,\log(\Fn)
+		+ \sum_{k=1}^{5}\beta_k\,\mathrm{hull}_k + \varepsilon,
+		\qquad \varepsilon\sim\mathcal{N}(0,\sigma^2).
+	\end{equation*}
+	Baseline non-informative \textbf{Jeffreys reference prior}
+	\[
+		\pi(\bm\beta\mid\sigma^2)\propto 1,\qquad \pi(\sigma^2)\propto\sigma^{-2}.
+	\]
+	\begin{block}{Closed-form posterior}
+		$\bm\beta\mid\sigma^2,\bm y\sim\mathcal{N}\!\big(\hat{\bm\beta},\,\sigma^2(\bm X^{\!\top}\bm X)^{-1}\big)$;
+		marginalising $\sigma^2$ gives a multivariate Student-$t$ with $n-p$ d.o.f.
+		The $95\%$ credible intervals coincide with the OLS confidence intervals --- no
+		simulation required.
+	\end{block}
+\end{frame}
+
+\begin{frame}{Result: the Froude exponent}
+	\begin{columns}[c]
+		\begin{column}{0.5\textwidth}
+			\centering
+			\includegraphics[width=\textwidth]{figures/loglog_scatter.pdf}
+		\end{column}
+		\begin{column}{0.5\textwidth}
+			\centering
+			\includegraphics[width=\textwidth]{figures/posterior_betaF.pdf}
+		\end{column}
+	\end{columns}
+	\vspace{0.4em}
+	\begin{itemize}
+		\item Excellent fit: $R^2 = 0.97$, residual SD $s = 0.32$ on the log scale.
+		\item $\bF \approx 4.69$, \ $95\%$ CI $=[4.60,\,4.78]$, \ $\Pr(\bF>4\mid\bm y)\approx 1$.
+		\item Power law confirmed --- the exponent is \emph{slightly steeper} than the textbook $\Fn^{4}$.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Hull covariates \& residual diagnostics}
+	\begin{columns}[T]
+		\begin{column}{0.46\textwidth}
+			\centering
+			\includegraphics[width=\textwidth]{figures/coef_forest.pdf}
+		\end{column}
+		\begin{column}{0.54\textwidth}
+			\textbf{Hull form factors.} Once $\Fn$ is in the model, every $95\%$ interval
+			contains zero --- the factors vary only across the $22$ hulls and are strongly
+			collinear (resolved by BMA in Part~3).
+			\vspace{0.7em}
+
+			\textbf{Residual diagnostics expose two defects:}
+			\begin{itemize}
+				\item $\cup$-shaped trend vs.\ fitted values --- a single constant exponent is too rigid;
+				\item spread shrinks as the fitted value grows --- textbook \emph{heteroscedasticity}.
+			\end{itemize}
+			\vspace{0.4em}
+			Both motivate the nonlinear correction in Part~4.
+		\end{column}
+	\end{columns}
+\end{frame}
+
+\begin{frame}{Prior sensitivity: does the prior drive $\bF>4$?}
+	Encode the physics in \textbf{independent informative priors} and ask how hard they
+	must insist on $4$:
+	\[
+		\bF\sim\mathcal{N}(4,\tau^2),\quad \beta_{j\neq F}\sim\mathcal{N}(0,100^2),\quad
+		\sigma^2\sim\text{Inv-Gamma}(10^{-3},10^{-3}),
+	\]
+	sampled with a \textbf{Gibbs sampler} ($10^4$ iters, $2\times10^3$ burn-in), sweeping $\tau$.
+	\begin{columns}[c]
+		\begin{column}{0.5\textwidth}
+			\centering
+			\includegraphics[width=\textwidth]{figures/posterior_betaF_prior.pdf}
+		\end{column}
+		\begin{column}{0.5\textwidth}
+			\footnotesize
+			\begin{tabular}{l r c}
+				\toprule
+				\textbf{Prior on $\bF$} & \textbf{Mean} & $\Pr(\bF>4)$ \\
+				\midrule
+				$\mathcal{N}(4,0.05^2)$ & $4.33$        & $1.00$       \\
+				$\mathcal{N}(4,0.10^2)$ & $4.56$        & $1.00$       \\
+				$\mathcal{N}(4,0.50^2)$ & $4.68$        & $1.00$       \\
+				reference prior         & $4.69$        & $1.00$       \\
+				\bottomrule
+			\end{tabular}
+			\vspace{0.6em}
+
+			\normalsize Only a near-dogmatic $\tau=0.05$ drags the mean to $4.33$.
+			For any diffuse prior ($\tau\ge0.1$) the data dominate:
+			$\bF>4$ is \textbf{robust to the prior}.
+		\end{column}
+	\end{columns}
 \end{frame}
 
 \end{document}
