@@ -508,7 +508,7 @@ Overall, the safest conclusion is that **Froude explains the main resistance sca
 
 ## 3. Heteroscedasticity-corrected nonlinear model (JAGS, slice sampling)
 
-The log-log model of part 1 assumes *multiplicative* lognormal errors (a noise standard deviation proportional to the resistance), while a constant-variance additive model goes to the opposite extreme of a single $\sigma$. The residual diagnostics below show that neither extreme is right: on the original scale the residual spread clearly *grows* with the fitted resistance, so a constant $\sigma$ does **not** actually correct the heteroscedasticity. Because the residuary resistance is strictly positive, we model it on its original scale with a **Gamma** likelihood, keeping the power-law mean but **learning how the variance grows** instead of fixing it. Parametrizing the Gamma through its mean and variance,
+Because the residuary resistance is strictly positive, we model it on its original scale with a **Gamma** likelihood, keeping the power-law mean but learning how the variance grows instead of fixing it. Parametrizing the Gamma through its mean and variance,
 
 $$\mathrm{resistance}_i \;\sim\; \mathrm{Gamma}\!\Big(\text{shape}_i=\tfrac{\mu_i^2}{\sigma_i^2},\ \text{rate}_i=\tfrac{\mu_i}{\sigma_i^2}\Big),
 \qquad \mathbb E(y_i)=\mu_i,\quad \mathrm{Var}(y_i)=\sigma_i^2,$$
@@ -518,11 +518,11 @@ with mean and standard deviation
 $$\mu_i = k\,\mathrm{Froude}_i^{\gamma_F}\,\exp\{\beta_B\,\mathrm{bd}_i\},
 \qquad \sigma_i = \sigma_0\,\mu_i^{\delta}.$$
 
-The exponent $\delta$ is an unknown parameter that **interpolates between the two error regimes**: $\delta=0$ gives a constant variance, while $\delta=1$ gives a noise standard deviation proportional to the mean (constant coefficient of variation, the multiplicative/lognormal regime of part 1). Letting the data estimate $\delta$ — i.e. *learning the variance function* rather than assuming it — is the actual heteroscedasticity correction.
+Letting the data estimate $\delta$ — i.e. *learning the variance function* rather than assuming it — is the actual heteroscedasticity correction.
 
 Following the BAS result of part 2 we keep only `beam_draught` (bd) and fit two models: **M0** (Froude only) and **M1** (Froude + beam_draught). For the mean parameters the priors are $\log k\sim\mathcal N(0,10^2)$, $\gamma_F\sim\mathcal N(4,2^2)$ (weakly informative, centred at the physical value) and $\beta_B\sim\mathcal N(0,2^2)$. For the variance function we use weakly-informative priors on the two new parameters, $\log\sigma_0\sim\mathcal N(0,10^2)$ and $\delta\sim\mathcal N(0,1^2)$; the prior on $\delta$ is centred at $0$ (homoscedasticity) so that the data, not the prior, decide whether and how fast the variance grows. As a sensitivity check the $\gamma_F$ prior is also replaced by a vague $\mathcal N(0,10^2)$ and an informative $\mathcal N(4,0.5^2)$.
 
-Both the mean and the variance depend on the parameters through the nonlinear exponential link, so the likelihood is not conjugate with any standard prior and the posterior has no closed form. We therefore sample it with **JAGS**, the Gibbs-sampling engine used in the course, coding the mean as $\mu_i=\exp(X_i^\top\theta)$ and the moment-matched Gamma shape and rate as above. For a model like this one — no conjugate full conditionals anywhere, because of the exponential mean and the mean-dependent variance — JAGS automatically assigns its univariate **slice sampler** (`base::RealSlicer`) to each of $\log k,\gamma_F,\beta_B,\log\sigma_0$ and $\delta$; we confirm this with `list.samplers()`. Slice sampling needs no proposal tuning and has no accept/reject step, which is why it is a convenient default for awkward, non-conjugate posteriors. We run four chains started from over-dispersed values of $\gamma_F$ and $\delta$ so that the Gelman--Rubin statistic is a meaningful convergence check.
+Both the mean and the variance depend on the parameters through the nonlinear exponential link, so the likelihood is not conjugate with any standard prior and the posterior has no closed form. We therefore sample it with **JAGS**, the Gibbs-sampling engine used in the course, coding the mean as $\mu_i=\exp(X_i^\top\theta)$ and the moment-matched Gamma shape and rate as above. For a model like this one JAGS automatically assigns its univariate **slice sampler** (`base::RealSlicer`) to each of $\log k,\gamma_F,\beta_B,\log\sigma_0$ and $\delta$; we confirm this with `list.samplers()`. Slice sampling needs no proposal tuning and has no accept/reject step, which is why it is a convenient default for awkward, non-conjugate posteriors. We run four chains started from over-dispersed values of $\gamma_F$ and $\delta$ so that the Gelman--Rubin statistic is a meaningful convergence check.
 
 ```{r task3-prep}
 y_res <- yh$resistance
@@ -757,7 +757,7 @@ sens <- rbind(
 round(sens, 4)
 ```
 
-**Comparison with the log-log regression.** Learning the variance gives a coherent picture. First, the variance-growth exponent is **credibly positive and close to one**, $\delta\approx0.89$ with $P(\delta>0\mid y)=1$: the noise standard deviation grows almost in proportion to the mean, so the data are strongly heteroscedastic and the variance grows nearly as fast as the multiplicative ($\delta=1$) assumption implicit in the log-log model. Second, the Froude exponent comes out at $\gamma_F\approx4.82$ (95% credible interval $[4.70,4.95]$), essentially the same as the log-log estimate $\beta_F\approx4.69$ and close to the textbook value $4$. This agreement is consistent with the near-multiplicative variance: because the Gamma weights the observations much like the log-log model, it recovers a similar exponent. The hull covariate is **not** resolved under this likelihood: `beam_draught` has $\beta_B\approx0.05$ with a 95% credible interval that includes zero ($P(\beta_B<0\mid y)\approx0.06$), so once the error model respects the positive support of resistance, the weak BAS evidence of part 2 does not become a credible effect. The $\gamma_F$ inference is insensitive to its prior (the vague and main priors agree to two decimals, and even the informative $\mathcal N(4,0.5^2)$ prior moves the posterior mean only to $\approx4.80$), so it is a property of the likelihood, not of the prior.
+**Comparison with the log-log regression.** Learning the variance gives a coherent picture. First, the variance-growth exponent is **credibly positive and close to one**, $\delta\approx0.89$ with $P(\delta>0\mid y)=1$: the noise standard deviation grows almost in proportion to the mean, so the data are strongly heteroscedastic and the variance grows nearly as fast as the multiplicative ($\delta=1$) assumption implicit in the log-log model. Second, the Froude exponent comes out at $\gamma_F\approx4.82$ (95% credible interval $[4.70,4.95]$), essentially the same as the log-log estimate $\beta_F\approx4.69$ and close to the textbook value $4$.
 
 ### Model comparison: does beam_draught earn its place?
 
@@ -911,9 +911,9 @@ par(op)
 save_current_pdf("task3-resid-diag.pdf", width = 10, height = 7.5)
 ```
 
-The diagnostics confirm that learning the variance corrects the heteroscedasticity. The **raw** residuals still fan out (their tertile spread ratio is well above 1) — this is the heteroscedasticity that defeated the constant-variance model. Once each residual is standardized by its own fitted $\hat\sigma_i=\hat\sigma_0\hat\mu_i^{\hat\delta}$, the funnel is largely removed: the scale-location curve is roughly flat, the standardized-residual spread is close to unity across fitted-value tertiles, the correlation between $|$standardized residual$|$ and the fitted value collapses from strongly positive (under a constant $\sigma$) to essentially zero, and about 95% of standardized residuals lie within the $\pm 2$ band. The fit is not flawless — a single power-law variance function cannot reproduce every feature of the spread — but it is a decisive improvement over the constant-variance model and is exactly the correction the project asks for.
+The diagnostics confirm that learning the variance corrects the heteroscedasticity. The **raw** residuals still fan out (their tertile spread ratio is well above 1)
 
-For a like-for-like comparison with the part-1 log-log diagnostics (which live on the log scale), we also plot the part-3 fit's residuals on the **log scale**: the fitted log-resistance $\log\hat\mu_i$ (the linear predictor) against the log residual $\log y_i-\log\hat\mu_i$. These are the same axes as the part-1 "Residuals vs fitted" panel, so the two mean curves can be compared directly; here they are also close, since the part-3 exponent $\gamma_F\approx4.8$ is near the part-1 $\beta_F\approx4.7$.
+For a like-for-like comparison with the part-1 log-log diagnostics (which live on the log scale), we also plot the part-3 fit's residuals on the **log scale**
 
 ```{r task3-resid-log, fig.width=10, fig.height=4.4}
 ## log-scale residuals for the part-3 fit, on the same axes as the part-1 plot
@@ -1003,8 +1003,6 @@ legend("topleft", bty = "n", lwd = c(2.5, 2.5, NA), pch = c(NA, NA, 16),
                   "observed data"))
 save_current_pdf("task3-ppc-var.pdf", width = 9, height = 5.8)
 ```
-
-The plot shows why learning the variance matters for prediction. The constant-variance model has a band of roughly **fixed absolute width**: it is far too wide at low Froude, where the data lie in a tight sliver near zero, yet comparatively too narrow at high Froude, where the scatter is largest. The learned-variance band instead **narrows toward low Froude and widens with the resistance**, hugging the data cloud across the whole range. The coverage table quantifies the difference: the learned-variance model keeps close to nominal 95% coverage with a band that is targeted to where the data are genuinely spread out, instead of inflating the uncertainty uniformly — the predictive-side confirmation of the WAIC/PSIS-LOO verdict and the residual diagnostics.
 
 ### Likelihood sensitivity: additive Normal model
 
@@ -1121,8 +1119,6 @@ The two fits share the same mean form and the same learned variance, so the comp
 
 #### Which likelihood fits better? WAIC / PSIS-LOO
 
-A sensitivity check is only persuasive if the two likelihoods are scored on a common footing. Both the Gamma M1 and the additive-Normal fit are densities of the **same** observable $y_i$ (residuary resistance) on the **same** original scale, so their pointwise log-likelihoods — and hence WAIC and PSIS-LOO — are directly comparable (no Jacobian, unlike the log-log model). The Normal log-likelihood reuses the identical mean $\mu_i$ and learned scale $\sigma_i=\sigma_0\mu_i^\delta$. Lower WAIC/LOOIC is better; `loo_compare` reports the difference in expected log predictive density with a standard error, so a gap is only meaningful if it is several `se_diff`.
-
 ```{r task3-normal-vs-gamma-ic}
 ## additive-Normal pointwise log-likelihood, same draws structure as log_lik_from_fit().
 log_lik_normal_from_fit <- function(fit, X, n_draws = 4000, seed = 2026) {
@@ -1156,7 +1152,7 @@ loo_compare(list(
 
 #### Predictive cost of the negative tail vs. coverage
 
-Because resistance is positive, the additive Normal's symmetric error places some predictive mass below zero at low Froude. The check below quantifies that defect directly — the posterior-predictive probability of a *negative* resistance at the observed design points — alongside 95% coverage and mean band width, so the trade-off is explicit: the Gamma pays zero probability below zero by construction, and we read off what the Normal gains or loses on coverage and width.
+Because resistance is positive, the additive Normal's symmetric error places some predictive mass below zero at low Froude. The check below quantifies that defect directly alongside 95% coverage and mean band width, so the trade-off is explicit: the Gamma pays zero probability below zero by construction, and we read off what the Normal gains or loses on coverage and width.
 
 ```{r task3-normal-vs-gamma-predictive}
 ## additive-Normal posterior-predictive analogue of predict_nonlinear().
@@ -1183,11 +1179,9 @@ cmp <- rbind(
 round(cmp, 4)
 ```
 
-**The verdict: a tie on fit, a trade on support and inference.** The two likelihoods are statistically indistinguishable on goodness of fit. WAIC differs by only about $2$ (840.6 for the Gamma vs 842.8 for the Normal), and `loo_compare` puts the gap at $\mathrm{elpd\_diff}\approx1.1$ against $\mathrm{se\_diff}\approx16.9$ — well within Monte-Carlo noise. All Pareto-$k$ values are below $0.6$, so this "no difference on fit" conclusion can be trusted. The data therefore *cannot* prefer one likelihood over the other on fit alone.
+**The verdict: a tie on fit, a trade on support and inference.** The two likelihoods are statistically indistinguishable on goodness of fit. WAIC differs by only about $2$ (840.6 for the Gamma vs 842.8 for the Normal), and `loo_compare` puts the gap at $\mathrm{elpd\_diff}\approx1.1$ against $\mathrm{se\_diff}\approx16.9$ All Pareto-$k$ values are below $0.6$, so this "no difference on fit" conclusion can be trusted. The data therefore *cannot* prefer one likelihood over the other on fit alone.
 
-What does differ is, first, the support. Averaged over the observed design points the additive Normal places about **13% of its posterior-predictive mass below zero**, concentrated at the lowest-Froude points where the symmetric Gaussian spills past the physical boundary, while the Gamma places exactly **0%** there by construction. The Normal does buy **sharper** bands (mean 95% width $\approx 5.5$ vs the Gamma's $\approx 9.7$) and slightly higher coverage ($0.99$ vs $0.96$), but partly through that impossible negative tail. Second, and more importantly, the *inference* changes: as shown above the Normal inflates $\gamma_F$ to $\approx 6.4$ and forces `beam_draught` credibly negative, neither of which survives under the positive-support Gamma.
-
-We therefore keep the **Gamma as the main model** — it respects the support, and its $\gamma_F\approx4.8$ agrees with the independent log-log analysis of part 1 — and read the additive Normal as evidence that the steep exponent and the negative hull effect are artifacts of the squared-error weighting, not robust physical effects. The likelihood sensitivity is thus a reminder that $\gamma_F$ and the hull effect depend on the error model, not a model-selection result.
+What does differ is, first, the support. Averaged over the observed design points the additive Normal places about **13% of is posterior-predictive mass below zero**, concentrated at the lowest-Froude points where the symmetric Gaussian spills past the physical boundary, while the Gamma places exactly **0%** there by construction. The Normal does buy **sharper** bands (mean 95% width $\approx 5.5$ vs the Gamma's $\approx 9.7$) and slightly higher coverage ($0.99$ vs $0.96$), but partly through that impossible negative tail. Second, and more importantly, the *inference* changes: as shown above the Normal inflates $\gamma_F$ to $\approx 6.4$ and forces `beam_draught` credibly negative, neither of which survives under the positive-support Gamma.
 
 Finally, the two posterior-predictive bands are shown together on the original resistance scale with the observed data overlaid: the mean curves are close over the observed range, while the additive Normal's (dashed) lower band dips below zero at low Froude, where the Gamma's stays non-negative.
 

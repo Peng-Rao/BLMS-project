@@ -424,17 +424,6 @@ $\beta_B$  & 1.0006 & 12000 \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[H]
-	\centering
-	\subfloat[Trace plots]{%
-		\includegraphics[width=0.49\textwidth]{figures/task3-diagnostics-1.pdf}}
-	\hfill
-	\subfloat[Autocorrelation functions]{%
-		\includegraphics[width=0.49\textwidth]{figures/task3-diagnostics-2.pdf}}
-	\caption{Trace plots and autocorrelation functions for model M1; each colour represents a chain.}
-	\label{fig:convergence}
-\end{figure}
-
 Table~\ref{tab:m1-convergence} reports the convergence diagnostics for the main M1 run. All Gelman--Rubin statistics are essentially equal to one, indicating that the independently initialized chains are sampling from the same posterior distribution. The effective sample sizes are also sufficiently large for posterior inference, especially for $\beta_B$.
 Figure~\ref{fig:convergence} shows that the different chains overlap on the plot and look like stationary noise; it shows that every chain mixed with the given sampling numbers, and the ACF decays to zero within a few lags.
 
@@ -464,6 +453,7 @@ the marginal posteriors of the three parameters of interest are shown in
     \bottomrule
   \end{tabular}
 \end{table}
+
 
 \begin{figure}[H]
   \centering
@@ -661,7 +651,13 @@ predictive density but with much wider intervals.
 
 \clearpage
 \appendix
-\section{Tables and Figures}
+% Number appendix floats as A.1, A.2, ... so cross-references clearly
+% signal that the table/figure lives in the appendix.
+\renewcommand{\thetable}{\thesection.\arabic{table}}
+\renewcommand{\thefigure}{\thesection.\arabic{figure}}
+\setcounter{table}{0}
+\setcounter{figure}{0}
+\section{Appendix}
 \label{app:tables}
 
 \begin{figure}[H]
@@ -790,6 +786,18 @@ Although the global fit is excellent, the residuals (\cref{fig:resid}) reveal tw
 		prior is unreasonably confident.}
 	\label{fig:informative}
 \end{figure}
+
+\begin{figure}[H]
+	\centering
+	\subfloat[Trace plots]{%
+		\includegraphics[width=0.49\textwidth]{figures/task3-diagnostics-1.pdf}}
+	\hfill
+	\subfloat[Autocorrelation functions]{%
+		\includegraphics[width=0.49\textwidth]{figures/task3-diagnostics-2.pdf}}
+	\caption{Trace plots and autocorrelation functions for model M1; each colour represents a chain.}
+	\label{fig:convergence}
+\end{figure}
+
 
 \begin{table}[h]
   \centering
