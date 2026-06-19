@@ -583,25 +583,29 @@ Task 3,
 	\qquad
 	\sigma_i=\sigma_0\mu_i^\delta .
 \]
-Here $\alpha_i=(\mu_i/\sigma_i)^2$ and $r_i=\mu_i/\sigma_i^2$. The curves in
-\cref{fig:posterior_predictive_curves} fix the hull form at representative
-values, so the comparison isolates the Froude--resistance relationship.
+Here $\alpha_i=(\mu_i/\sigma_i)^2$ and $r_i=\mu_i/\sigma_i^2$. The panels in
+\cref{fig:posterior_predictive_comparison} fix the hull form at representative
+values, isolating the Froude--resistance relationship.
 
 \begin{figure}[H]
 	\centering
-	\includegraphics[width=0.95\textwidth]{figures/posterior_predictive_curves.pdf}
-	\caption{Posterior predictive curves on the original resistance scale. The
-		blue band is the log--log model after back-transformation, and the red band
-		is the heteroscedastic nonlinear M1 model. Points are the observed yacht
-		resistance data.}
-	\label{fig:posterior_predictive_curves}
+	\subfloat[Predictive curves.\label{fig:posterior_predictive_curves}]{%
+		\includegraphics[width=0.49\textwidth]{figures/posterior_predictive_curves.pdf}}
+	\hfill
+	\subfloat[Band widths.\label{fig:posterior_predictive_widths}]{%
+		\includegraphics[width=0.49\textwidth]{figures/posterior_predictive_widths.pdf}}
+	\caption{Posterior predictive comparison on the resistance scale. Left: fitted
+		predictive bands and observed data. Right: interval width across Froude
+		number.}
+	\label{fig:posterior_predictive_comparison}
 \end{figure}
 
 \cref{tab:ppc_coverage} summarizes empirical $95\%$ coverage and average band
 width over the full data. The constant-variance Gamma M1 comparison is too
 narrow, covering only $67.9\%$ of observations. The learned-variance Gamma M1
 model raises coverage to $93.2\%$ with much narrower bands than the log--log
-model, showing that heteroscedasticity is needed but can be modelled efficiently.
+model. The right panel of \cref{fig:posterior_predictive_comparison} shows
+the same effect as widening intervals at larger responses.
 
 \begin{table}[H]
 	\centering
@@ -619,16 +623,6 @@ model, showing that heteroscedasticity is needed but can be modelled efficiently
 		\bottomrule
 	\end{tabular}
 \end{table}
-
-\begin{figure}[H]
-	\centering
-	\includegraphics[width=0.85\textwidth]{figures/posterior_predictive_widths.pdf}
-	\caption{Width of the pointwise $95\%$ posterior predictive bands along the
-		Froude-number grid used in \cref{fig:posterior_predictive_curves}. The
-		constant-variance Gamma M1 comparison stays too narrow at high resistance,
-		while the learned-variance Gamma M1 band expands with the mean response.}
-	\label{fig:posterior_predictive_widths}
-\end{figure}
 
 In the fitted Gamma M1 model, $\gamma_F\approx4.82$ and $\delta\approx0.89$.
 Thus the mean curve remains close to the log--log power law, but uncertainty is
