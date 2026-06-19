@@ -307,4 +307,110 @@
 	\end{columns}
 \end{frame}
 
+%=======================================================================
+\section{BAS / BMA Model Selection}
+%=======================================================================
+
+\begin{frame}{Model space: which hull factors matter after Froude?}
+	\textbf{Conditional question.} Once the dominant physical predictor is fixed,
+	which hull-geometry variables still carry signal?
+	\[
+		\log(\mathrm{resistance}) =
+		\beta_0 + \beta_F \log(\Fn)
+		+ \sum_{k \in \mathcal{M}} \beta_k\,\mathrm{hull}_k
+		+ \varepsilon.
+	\]
+	\begin{itemize}
+		\item $\log(\Fn)$ is included in every candidate model.
+		\item Optional hull covariates: \texttt{LCB}, \texttt{prismatic},
+		      \texttt{L\_disp}, \texttt{beam\_draught}, \texttt{L\_beam}.
+		\item Five optional variables imply $2^5 = 32$ submodels.
+		\item BAS/BMA averages over models instead of relying on one saturated regression.
+	\end{itemize}
+	\begin{block}{Question}
+		Among the hull factors, which ones still matter conditional on Froude?
+	\end{block}
+\end{frame}
+
+\begin{frame}{Baseline result: beam-draught has the largest PIP}
+	\small
+	Posterior inclusion probability (PIP) is the posterior probability that a
+	covariate belongs in the regression model after averaging over all $32$ submodels.
+	\vspace{0.4em}
+	\begin{center}
+		\begin{tabular}{lcc}
+			\toprule
+			\textbf{Covariate} & \textbf{PIP} & \textbf{Evidence} \\
+			\midrule
+			\texttt{beam\_draught} & $0.565$ & moderate \\
+			\texttt{prismatic} & $0.265$ & weak \\
+			\texttt{LCB} & $0.210$ & weak \\
+			\texttt{L\_disp} & $0.206$ & weak \\
+			\texttt{L\_beam} & $0.192$ & weak \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	\begin{itemize}
+		\item Highest posterior model: $\log(\Fn) + \texttt{beam\_draught}$.
+		\item Its posterior probability is only $0.234$, so model uncertainty remains substantial.
+		\item \texttt{beam\_draught} carries the strongest residual signal, but evidence is not decisive.
+	\end{itemize}
+	\textbf{Takeaway.} Froude is robust; hull effects are weaker, with beam-draught as the best secondary candidate.
+\end{frame}
+
+\begin{frame}{Sensitivity: is the BAS/BMA ranking robust to the prior?}
+	\small
+	The baseline analysis was checked under alternative BAS/BMA prior specifications,
+	with the same $32$-model space and $\log(\Fn)$ forced into every model.
+	\vspace{0.4em}
+	\begin{center}
+		\scriptsize
+		\resizebox{\textwidth}{!}{%
+		\begin{tabular}{lccccc}
+			\toprule
+			\textbf{Prior} & \textbf{LCB} & \textbf{prismatic} & \textbf{L\_disp} & \textbf{beam\_draught} & \textbf{L\_beam} \\
+			\midrule
+			BIC / reference & $0.210$ & $0.265$ & $0.206$ & $0.565$ & $0.192$ \\
+			$g$-prior ($g=n$) & $0.186$ & $0.217$ & $0.182$ & $0.499$ & $0.166$ \\
+			JZS & $0.060$ & $0.057$ & $0.051$ & $0.243$ & $0.042$ \\
+			\bottomrule
+		\end{tabular}%
+		}
+	\end{center}
+	\begin{itemize}
+		\item \texttt{beam\_draught} is top-ranked under all three specifications.
+		\item Its PIP falls from $0.565$ to $0.243$, so selection is prior-sensitive.
+		\item No hull covariate receives consistently strong support.
+	\end{itemize}
+	\begin{block}{Robust conclusion}
+		Not ``beam-draught is definitely selected'', but ``beam-draught is the most
+		defensible secondary hull covariate.''
+	\end{block}
+\end{frame}
+
+\begin{frame}{From BAS/BMA to the nonlinear model}
+	\[
+		\begin{aligned}
+			\text{Log--log regression}
+			&\Longrightarrow \text{BAS/BMA over hull factors}\\
+			&\Longrightarrow \text{Nonlinear models } M_0 \text{ vs. } M_1.
+		\end{aligned}
+	\]
+	\begin{itemize}
+		\item BAS/BMA proposes \texttt{beam\_draught} as the best-supported secondary hull covariate.
+		\item Because evidence is moderate, we do not assume it is certainly important.
+		\item Next step:
+		\[
+			M_0: \text{Froude only}, \qquad
+			M_1: \text{Froude} + \text{\texttt{beam\_draught}}.
+		\]
+		\item The nonlinear heteroscedastic model checks whether this candidate improves
+		      prediction on the original resistance scale.
+	\end{itemize}
+	\begin{block}{Takeaway}
+		BAS/BMA is used as a screening step: it narrows the hull variables to the most
+		defensible one, but leaves the final assessment to the nonlinear model comparison.
+	\end{block}
+\end{frame}
+
 \end{document}
