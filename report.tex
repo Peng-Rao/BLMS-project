@@ -102,9 +102,9 @@ the towing-tank runs.
 The scientific question is motivated by hydrodynamic theory. For sailing yachts,
 residuary resistance is expected to follow an approximate power law in the
 Froude number,
-\[
+\begin{equation}
 	\mathrm{resistance}\propto Fn^{\gamma_F},
-\]
+\end{equation}
 with exponent close to $4$ in the bulk regime. The project asks whether this
 relationship is visible in the data, which hull-geometry variables still matter
 after accounting for speed, and how the inference changes once the clear
@@ -154,10 +154,10 @@ Integrating out $\sigma^2$ gives a multivariate Student-$t$ posterior for $\bm{\
 \subsection{Results}
 
 \Cref{tab:loglog} (in the appendix) reports the posterior summaries. The model explains the data very well ($R^2=0.97$, residual standard deviation $s=0.32$ on the log scale) and the posterior of the Froude exponent is sharply concentrated,
-\[
+\begin{equation}
 	\beta_F \approx 4.69, \qquad
 	95\%\ \text{CI} = [4.60,\ 4.78],
-\]
+\end{equation}
 confirming the expected power-law behaviour $\mathrm{resistance}\sim Fn^{\,4}$ and verifying the project requirement $\hat\beta_F\approx 4$.
 
 \Cref{fig:loglog} (appendix) shows the log--log scatter with the posterior-mean line and its very tight $95\%$ credible band (left), and the posterior of $\beta_F$ (right): the whole posterior mass sits above the nominal value $4$ ($\Pr(\beta_F>4\mid\bm{y})\approx 1$), so the empirical exponent is best described as \emph{slightly steeper} than the textbook value of four.
@@ -315,26 +315,26 @@ explicitly.
 
 Following the BAS/BMA analysis, the only hull-form variable carried forward was the beam-draught ratio, whose posterior inclusion probability was about $0.565$, so the evidence was moderate rather than strong.
 Therefore, we fitted both a Froude-only model \textbf{M0} and a model including beam-draught \textbf{M1}. Because the residuary resistance is strictly positive, the main heteroscedastic nonlinear model uses a \textbf{Gamma} likelihood, parametrized through its mean and variance,
-\[
+\begin{equation}
 Y_i \mid \theta,\sigma_0,\delta
 \sim
 \mathrm{Gamma}\!\Big(\text{shape}_i=\tfrac{\mu_i^2}{\sigma_i^2},\ \text{rate}_i=\tfrac{\mu_i}{\sigma_i^2}\Big),
 \qquad
 \mathbb{E}(Y_i)=\mu_i,\quad \mathrm{Var}(Y_i)=\sigma_i^2,
-\]
+\end{equation}
 where $Y_i$ is the observed residuary resistance and
-\[
+\begin{equation}
 \mu_i
 =
 k\,\mathrm{Froude}_i^{\gamma_F}
 \exp\{\beta_B\,\mathrm{bd}_i\}.
-\]
+\end{equation}
 Here $\mathrm{bd}_i$ is the beam--draught ratio (\texttt{beam\_draught}), and
 $k>0$ is the multiplicative constant of the power law.
 To model heteroscedasticity, we did not assume a constant variance. Instead, we used
-\[
+\begin{equation}
 \sigma_i = \sigma_0 \mu_i^\delta .
-\]
+\end{equation}
 The parameter $\delta$ controls how fast the standard deviation grows with the fitted mean.
 If $\delta=0$, then the variance is constant.
 If $\delta=1$, then the standard deviation is proportional to the mean (constant coefficient of variation), which is close to the multiplicative-error interpretation of the log-log model.
@@ -345,11 +345,11 @@ hull coefficient $\beta_B$, the baseline noise level $\sigma_0$, and the
 by comparing the fixed-variance version ($\delta=0$) with the learned-variance version using WAIC and PSIS-LOO.
 
 For computation, the mean was rewritten in exponential form,
-\[
+\begin{equation}
 \mu_i
 =
 \exp\{\log k+\gamma_F \log(\mathrm{Froude}_i)+\beta_B \mathrm{bd}_i\},
-\]
+\end{equation}
 so that it is a log-linear predictor in the parameters, and the Gamma shape and rate are obtained
 from $\mu_i$ and $\sigma_i$ by moment matching as above.
 
@@ -575,14 +575,14 @@ All posterior predictive comparisons are shown on the original resistance scale.
 The log--log model gives a lognormal predictive distribution after
 back-transformation, while the nonlinear M1 model uses the Gamma likelihood from
 Task 3,
-\[
+\begin{equation}
 	y_i^{\mathrm{rep}} \sim \mathrm{Gamma}(\alpha_i,r_i),
 	\qquad
 	\mu_i=\exp\{b_0+\gamma_F\widetilde{\log Fn}_i+
 	\beta_B\widetilde{bd}_i\},
 	\qquad
 	\sigma_i=\sigma_0\mu_i^\delta .
-\]
+\end{equation}
 Here $\alpha_i=(\mu_i/\sigma_i)^2$ and $r_i=\mu_i/\sigma_i^2$. The panels in
 \cref{fig:posterior_predictive_comparison} fix the hull form at representative
 values, isolating the Froude--resistance relationship.
