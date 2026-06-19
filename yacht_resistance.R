@@ -395,12 +395,7 @@ xB_c <- yh$beam_draught - mB
 X0 <- cbind(intercept = 1, log_Fr = xF_c)                    # M0: Froude only
 X1 <- cbind(X0, beam_draught = xB_c)                         # M1: + beam_draught
 
-save_current_pdf <- function(filename, width, height) {
-  dir.create("figures", showWarnings = FALSE)
-  dev.copy(pdf, file = file.path("figures", filename),
-           width = width, height = height)
-  invisible(dev.off())
-}
+dir.create("figures", showWarnings = FALSE)
 
 if (!requireNamespace("rjags", quietly = TRUE)) {
   stop("Package 'rjags' and the JAGS program are required. Install JAGS (https://mcmc-jags.sourceforge.io), then install.packages('rjags').")
@@ -514,16 +509,18 @@ rbind(diag_table(fit_M0, "M0 (main prior)"),
       diag_table(fit_M1_inform, "M1 (informative gamma_F prior)"))
 
 ## traceplots + autocorrelation for the headline run (M1, main prior)
+pdf("figures/task3-diagnostics-trace.pdf", width = 10, height = 6)
 op <- par(mfrow = c(2, 2), mar = c(4, 4, 2, 1))
 traceplot(fit_M1[, c("theta[2]", "theta[3]", "sigma0", "delta")])
 par(op)
-save_current_pdf("task3-diagnostics-trace.pdf", width = 10, height = 6)
+dev.off()
 
+pdf("figures/task3-diagnostics-acf.pdf", width = 10, height = 6)
 op <- par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
 acf(as.matrix(fit_M1[, "theta[2]"]), main = "ACF gamma_F (pooled chains)")
 acf(as.matrix(fit_M1[, "delta"]),    main = "ACF delta (pooled chains)")
 par(op)
-save_current_pdf("task3-diagnostics-acf.pdf", width = 10, height = 6)
+dev.off()
 
 ## back-transform the centred intercept to the physical k for every draw
 post_summary <- function(fit, hull = TRUE) {
@@ -554,6 +551,7 @@ cat("log-log (part 1) for comparison: beta_F =", round(bF, 3),
 cat("log-log beam_draught 95% CI: [",
     paste(round(confint(fit)["beam_draught", ], 4), collapse = ", "), "]\n")
 
+pdf("figures/task3-gamma-plot.pdf", width = 13, height = 4.6)
 op <- par(mfrow = c(1, 3), mar = c(4.2, 4.2, 2, 1))
 
 ## gamma_F (heteroscedastic M1)
@@ -583,7 +581,7 @@ legend("topright", bty = "n", lwd = 1, lty = 3,
        col = "grey50",
        legend = expression(delta == 1*" (multiplicative)"))
 par(op)
-save_current_pdf("task3-gamma-plot.pdf", width = 13, height = 4.6)
+dev.off()
 
 ## gamma_F posterior under the three priors (M1)
 sens <- rbind(
@@ -697,6 +695,7 @@ cat(sprintf("  cor(|standardized residual|, fitted) = %.3f   (was strongly + und
 cat(sprintf("  fraction of standardized residuals within +/-2 = %.3f\n",
             mean(abs(std_M1) < 2)))
 
+pdf("figures/task3-resid-diag.pdf", width = 10, height = 7.5)
 op <- par(mfrow = c(2, 2), mar = c(4.2, 4.2, 2.2, 1))
 
 ## (1) residuals vs fitted
@@ -722,7 +721,7 @@ qqnorm(std_M1, pch = 16, cex = 0.6, col = rgb(0, 0, 0, 0.45),
        main = "Normal Q-Q (standardized residuals)")
 qqline(std_M1, col = "firebrick")
 par(op)
-save_current_pdf("task3-resid-diag.pdf", width = 10, height = 7.5)
+dev.off()
 
 ## log-scale residuals for the part-3 fit, on the same axes as the part-1 plot
 logfit_M1   <- log(fitted_M1)              # = X1 %*% th_hat  (fitted log-resistance)
@@ -731,6 +730,7 @@ logresid_M1 <- log(y_res) - logfit_M1      # log(y) - log(mu_hat)
 cat(sprintf("cor(|log residual|, fitted log-resistance) = %.3f\n",
             cor(abs(logresid_M1), logfit_M1)))
 
+pdf("figures/task3-resid-log.pdf", width = 10, height = 4.4)
 op <- par(mfrow = c(1, 2), mar = c(4.2, 4.2, 2.2, 1))
 plot(logfit_M1, logresid_M1, pch = 16, cex = 0.6, col = rgb(0, 0, 0, 0.45),
      xlab = "fitted log(resistance)", ylab = "log residual",
@@ -742,7 +742,7 @@ qqnorm(logresid_M1, pch = 16, cex = 0.6, col = rgb(0, 0, 0, 0.45),
        main = "Normal Q-Q (log residuals, part 3)")
 qqline(logresid_M1, col = "firebrick")
 par(op)
-save_current_pdf("task3-resid-log.pdf", width = 10, height = 4.4)
+dev.off()
 
 set.seed(7)
 ## Posterior predictive bands for the nonlinear mean under either variance model.
@@ -780,6 +780,7 @@ round(rbind(`M1 constant variance (delta = 0)`  = cover(fit_M1_homo),
             `M1 learned variance  (delta free)` = cover(fit_M1)), 3)
 
 ylim_top <- max(yh$resistance, pp_homo$upper, pp_het$upper)
+pdf("figures/task3-ppc-var.pdf", width = 9, height = 5.8)
 plot(yh$Froude, yh$resistance, pch = 16, cex = 0.65, col = rgb(0, 0, 0, 0.42),
      xlab = "Froude number", ylab = "residuary resistance",
      ylim = c(0, ylim_top * 1.04),
@@ -799,7 +800,7 @@ legend("topleft", bty = "n", lwd = c(2.5, 2.5, NA), pch = c(NA, NA, 16),
        legend = c("constant variance (delta = 0): mean + 95% band",
                   "learned variance (delta free): mean + 95% band",
                   "observed data"))
-save_current_pdf("task3-ppc-var.pdf", width = 9, height = 5.8)
+dev.off()
 
 jags_normal_hetero <- "
 model {
@@ -869,6 +870,7 @@ cat(sprintf(
   mean(gF_normal > 4), mean(bB_normal < 0), mean(dl_normal > 0)
 ))
 
+pdf("figures/task3-gamma-likelihood-sensitivity.pdf", width = 13, height = 4.6)
 op <- par(mfrow = c(1, 3), mar = c(4.2, 4.2, 2, 1))
 plot(density(gF_draws), col = "firebrick", lwd = 2.4,
      xlim = range(gF_draws, gF_normal),
@@ -894,7 +896,7 @@ plot(density(dl_draws), col = "firebrick", lwd = 2.4,
 lines(density(dl_normal), col = "navy", lwd = 2.4)
 abline(v = c(0, 1), lty = c(2, 3), col = c("black", "grey50"))
 par(op)
-save_current_pdf("task3-gamma-likelihood-sensitivity.pdf", width = 13, height = 4.6)
+dev.off()
 
 ## additive-Normal pointwise log-likelihood, same draws structure as log_lik_from_fit().
 log_lik_normal_from_fit <- function(fit, X, n_draws = 4000, seed = 2026) {
@@ -953,6 +955,7 @@ pp_gamma_grid <- predict_nonlinear(fit_M1,        Xgrid)   # Gamma M1 (main)
 pp_norm_grid  <- predict_normal(fit_M1_normal,    Xgrid)   # additive Normal sensitivity
 
 ylim_top <- max(yh$resistance, pp_norm_grid$upper, pp_gamma_grid$upper)
+pdf("figures/task3-gamma-predictive-overlay.pdf", width = 9, height = 5.8)
 plot(yh$Froude, yh$resistance, pch = 16, cex = 0.65, col = rgb(0, 0, 0, 0.42),
      xlab = "Froude number", ylab = "residuary resistance",
      ylim = c(min(0, pp_norm_grid$lower), ylim_top * 1.04),
@@ -979,7 +982,7 @@ legend("topleft", bty = "n",
                   "additive Normal: mean + 95% band",
                   "Normal lower band (un-clipped, dips < 0)",
                   "observed data"))
-save_current_pdf("task3-gamma-predictive-overlay.pdf", width = 9, height = 5.8)
+dev.off()
 
 set.seed(42)
 
