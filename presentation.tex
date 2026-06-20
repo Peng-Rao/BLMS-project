@@ -413,4 +413,147 @@
 	\end{block}
 \end{frame}
 
+
+%=======================================================================
+\section{Posterior Predictive Curves}
+%=======================================================================
+
+\begin{frame}{Why move back to the original resistance scale?}
+	\small
+	The log--log model is fitted on the transformed response,
+	\[
+		\log(Y_i)=x_i^{\top}\beta+\varepsilon_i,
+		\qquad \varepsilon_i\sim\mathcal{N}(0,\sigma^2).
+	\]
+	But the measured physical quantity is resistance itself, $Y_i$, not $\log(Y_i)$.
+	For prediction we therefore simulate on the log scale and transform back:
+	\[
+		\log(Y_i^{\mathrm{rep}})\sim\mathcal{N}(x_i^{\top}\beta,\sigma^2),
+		\qquad
+		Y_i^{\mathrm{rep}}=\exp\{\log(Y_i^{\mathrm{rep}})\}.
+	\]
+	\begin{block}{Speaking point}
+		Exponentiating is not cosmetic: it returns predictions to the resistance scale,
+		keeps them positive, and makes the log--log predictive distribution lognormal.
+	\end{block}
+\end{frame}
+
+\begin{frame}{What is $Y^{\mathrm{rep}}$ and why is $\mu_i$ exponential?}
+	\small
+	Posterior predictive checking generates replicated observations from the fitted model:
+	\[
+		Y_i^{\mathrm{rep}}\mid\theta^{(s)} \sim p(Y_i\mid\theta^{(s)}),
+	\]
+	so each band includes both posterior parameter uncertainty and fresh observation noise.
+	\vspace{0.4em}
+
+	For the heteroscedastic nonlinear model we predict directly on the resistance scale:
+	\[
+		Y_i^{\mathrm{rep}}\sim\mathrm{Gamma}(\alpha_i,r_i),
+		\qquad
+		\mu_i=\exp\{b_0+\gamma_F\widetilde{\log \Fn}_i+
+		\beta_B\widetilde{bd}_i\}.
+	\]
+	\[
+		\sigma_i=\sigma_0\mu_i^{\delta},
+		\qquad
+		\alpha_i=(\mu_i/\sigma_i)^2,
+		\quad r_i=\mu_i/\sigma_i^2.
+	\]
+	\begin{itemize}
+		\item The exponential form is the power law $k\Fn^{\gamma_F}\exp(\beta_B bd)$ written as a positive mean.
+		\item $\delta=0$ means constant variance; $\delta>0$ lets uncertainty grow with resistance.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Which models are compared?}
+	\small
+	\textbf{Variable selection came from BAS/BMA.}
+	\begin{itemize}
+		\item Froude is forced into every model because it is the dominant physical predictor.
+		\item Among the five hull covariates, \texttt{beam\_draught} has the largest PIP ($\approx0.565$).
+		\item Evidence is only moderate, so the nonlinear stage treats it as a candidate, not a guaranteed effect.
+	\end{itemize}
+	\vspace{0.3em}
+	\begin{center}
+		\begin{tabular}{ll}
+			\toprule
+			\textbf{Model} & \textbf{Purpose in predictive comparison} \\
+			\midrule
+			Log--log & Baseline power law, back-transformed to $Y$ \\
+			Gamma M1, $\delta=0$ & Same mean, constant variance \\
+			Gamma M1, $\delta$ learned & Same mean, heteroscedastic variance \\
+			\bottomrule
+		\end{tabular}
+	\end{center}
+	\begin{block}{Main question}
+		Does learning heteroscedasticity improve calibration without losing the Froude power-law interpretation?
+	\end{block}
+\end{frame}
+
+\begin{frame}{Posterior predictive curves and band widths}
+	\begin{columns}[T]
+		\begin{column}{0.50\textwidth}
+			\centering
+			\includegraphics[width=\textwidth]{figures/posterior_predictive_curves.pdf}
+		\end{column}
+		\begin{column}{0.50\textwidth}
+			\centering
+			\includegraphics[width=\textwidth]{figures/posterior_predictive_widths.pdf}
+		\end{column}
+	\end{columns}
+	\vspace{0.35em}
+	\scriptsize
+	\begin{itemize}
+		\item Left: observed resistances are black points; bands are $95\%$ posterior predictive intervals on the original scale.
+		\item Log--log is positive after back-transformation and imposes multiplicative uncertainty.
+		\item Gamma learned variance also stays positive, but estimates $\sigma_i=\sigma_0\mu_i^\delta$ directly on the resistance scale.
+		\item Right: constant variance is too narrow; learned variance widens intervals where resistance is larger.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Calibration and train/test check}
+	\small
+	\begin{columns}[T]
+		\begin{column}{0.48\textwidth}
+			\textbf{Full-data posterior predictive calibration}
+			\vspace{0.3em}
+			\scriptsize
+			\begin{tabular}{lcc}
+				\toprule
+				\textbf{Model} & \textbf{Cov.} & \textbf{Width} \\
+				\midrule
+				Log--log & $0.968$ & $12.241$ \\
+				Gamma const. var. & $0.679$ & $4.212$ \\
+				Gamma learned var. & $0.932$ & $5.403$ \\
+				\bottomrule
+			\end{tabular}
+			\vspace{0.7em}
+
+			\normalsize Constant variance under-covers badly; learned variance restores near-nominal coverage with narrower bands than log--log.
+		\end{column}
+		\begin{column}{0.52\textwidth}
+			\textbf{80/20 train/test posterior predictive check}
+			\vspace{0.3em}
+			\scriptsize
+			\begin{tabular}{lccc}
+				\toprule
+				\textbf{Model} & \textbf{Mean LPD} & \textbf{Cov.} & \textbf{Width} \\
+				\midrule
+				Log--log & $-1.540$ & $0.984$ & $14.662$ \\
+				Gamma const. & $-3.773$ & $0.710$ & $4.420$ \\
+				Gamma learned & $-1.992$ & $0.935$ & $6.055$ \\
+				\bottomrule
+			\end{tabular}
+			\vspace{0.7em}
+
+			\normalsize The split is a sanity check: log--log wins LPD but is widest; learned Gamma gives calibrated intervals on the physical scale.
+		\end{column}
+	\end{columns}
+	\vspace{0.4em}
+	\begin{block}{Takeaway}
+		The robust story is the Froude power law plus heteroscedastic uncertainty; the hull effect remains weak.
+	\end{block}
+\end{frame}
+
 \end{document}
