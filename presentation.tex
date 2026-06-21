@@ -178,7 +178,7 @@
 \begin{frame}{The Yacht Hydrodynamics dataset}
 	\begin{columns}[T]
 		\begin{column}{0.54\textwidth}
-			\textbf{Source.} UCI ML Repository --- Delft Systematic Yacht
+			\textbf{Source.} UCI ML Repository: Delft Systematic Yacht
 			Hull Series, towing-tank experiments.
 			\begin{itemize}
 				\item $22$ hull forms, each tested at several speeds
@@ -189,20 +189,14 @@
 			\end{itemize}
 		\end{column}
 		\begin{column}{0.46\textwidth}
-			\footnotesize
-			\begin{block}{Variables}
-				\begin{tabular}{@{}ll@{}}
-					\texttt{LCB}           & centre of buoyancy (\%) \\
-					\texttt{prismatic}     & prismatic coefficient   \\
-					\texttt{L\_disp}       & length--displ.\ ratio   \\
-					\texttt{beam\_draught} & beam--draught ratio     \\
-					\texttt{L\_beam}       & length--beam ratio      \\[2pt]
-					\texttt{Froude}        & $\Fn = v/\sqrt{gL}$     \\[2pt]
-					\texttt{resistance}    & response (target)       \\
-				\end{tabular}
-			\end{block}
-			\scriptsize The five form factors vary only across the $22$ hulls;
-			$\Fn\in[0.125,0.45]$ is the dominant predictor.
+			\centering
+			\includegraphics[width=0.96\textwidth]{figures/yacht_power_law_scaling.pdf}
+			\vspace{0.35em}
+			\begin{itemize}
+				\scriptsize
+				\item The near-linear pattern on log--log axes supports a power-law relation.
+				\item Low-\Fn{} scatter motivates checking residual variation in later models.
+			\end{itemize}
 		\end{column}
 	\end{columns}
 \end{frame}
@@ -226,7 +220,7 @@
 	\begin{block}{Closed-form posterior}
 		$\bm\beta\mid\sigma^2,\bm y\sim\mathcal{N}\!\big(\hat{\bm\beta},\,\sigma^2(\bm X^{\!\top}\bm X)^{-1}\big)$;
 		marginalising $\sigma^2$ gives a multivariate Student-$t$ with $n-p$ d.o.f.
-		The $95\%$ credible intervals coincide with the OLS confidence intervals --- no
+		The $95\%$ credible intervals coincide with the OLS confidence intervals, no
 		simulation required.
 	\end{block}
 \end{frame}
@@ -246,7 +240,7 @@
 	\begin{itemize}
 		\item Excellent fit: $R^2 = 0.97$, residual SD $s = 0.32$ on the log scale.
 		\item $\bF \approx 4.69$, \ $95\%$ CI $=[4.60,\,4.78]$, \ $\Pr(\bF>4\mid\bm y)\approx 1$.
-		\item Power law confirmed --- the exponent is \emph{slightly steeper} than the textbook $\Fn^{4}$.
+		\item Power law confirmed, the exponent is \emph{slightly steeper} than the textbook $\Fn^{4}$.
 	\end{itemize}
 \end{frame}
 
@@ -258,14 +252,14 @@
 		\end{column}
 		\begin{column}{0.54\textwidth}
 			\textbf{Hull form factors.} Once $\Fn$ is in the model, every $95\%$ interval
-			contains zero --- the factors vary only across the $22$ hulls and are strongly
+			contains zero, the factors vary only across the $22$ hulls and are strongly
 			collinear (resolved by BMA in Part~3).
 			\vspace{0.7em}
 
 			\textbf{Residual diagnostics expose two defects:}
 			\begin{itemize}
-				\item $\cup$-shaped trend vs.\ fitted values --- a single constant exponent is too rigid;
-				\item spread shrinks as the fitted value grows --- textbook \emph{heteroscedasticity}.
+				\item $\cup$-shaped trend vs.\ fitted values, a single constant exponent is too rigid;
+				\item spread shrinks as the fitted value grows, textbook \emph{heteroscedasticity}.
 			\end{itemize}
 			\vspace{0.4em}
 			Both motivate the nonlinear correction in Part~4.
@@ -619,7 +613,7 @@
 %=======================================================================
 \section{Posterior Predictive Curves}
 %=======================================================================
-
+ 
 \begin{frame}{Why move back to the original resistance scale?}
 	\small
 	The log--log model is fitted on the transformed response,

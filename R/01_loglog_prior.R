@@ -8,12 +8,22 @@ summary(yh)
 
 # The power-law in Fn is best seen on log-log axes;
 # resistance > 0 everywhere (min = 0.01), so plain log() needs no offset
-plot(log(yh$Froude), log(yh$resistance),
-     pch = 16, cex = 0.5,
-     xlab = "log(Froude)", ylab = "log(resistance)",
-     main = "Yacht hydrodynamic resistance — power-law scaling")
-abline(lm(log(resistance) ~ log(Froude), data = yh),
-       col = "red", lwd = 2)
+draw_power_law_scaling <- function() {
+  plot(log(yh$Froude), log(yh$resistance),
+       pch = 16, cex = 0.5,
+       xlab = "log(Froude)", ylab = "log(resistance)",
+       main = "Yacht hydrodynamic resistance — power-law scaling")
+  abline(lm(log(resistance) ~ log(Froude), data = yh),
+         col = "red", lwd = 2)
+}
+
+if (interactive() || dev.cur() > 1) {
+  draw_power_law_scaling()
+}
+
+pdf("figures/yacht_power_law_scaling.pdf", width = 7.6, height = 4.6)
+draw_power_law_scaling()
+invisible(dev.off())
 
 set.seed(2026)
 yh$log_res <- log(yh$resistance)   # no offset: min(resistance) = 0.01 > 0
