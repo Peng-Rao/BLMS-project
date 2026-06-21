@@ -69,13 +69,25 @@ legend("topright", bty = "n", lwd = c(2.4, 1, 2), lty = c(1, 2, 1),
        col = c("firebrick", "firebrick", "navy"),
        legend = c("posterior", "95% CI", expression(beta[F] == 4)))
 
+draw_loglog_residuals_vs_fitted <- function() {
+  plot(fitted(fit), resid(fit), pch = 16, cex = 0.5, col = rgb(0,0,0,0.45),
+       xlab = "fitted log(resistance)", ylab = "residual",
+       main = "Residuals vs fitted")
+  abline(h = 0, col = "firebrick")
+  lines(lowess(fitted(fit), resid(fit)), col = "navy", lwd = 2)
+}
+
 op <- par(mfrow = c(1, 2), mar = c(4.2, 4.2, 2, 1))
-plot(fitted(fit), resid(fit), pch = 16, cex = 0.5, col = rgb(0,0,0,0.45),
-     xlab = "fitted log(resistance)", ylab = "residual", main = "Residuals vs fitted")
-abline(h = 0, col = "firebrick"); lines(lowess(fitted(fit), resid(fit)), col = "navy", lwd = 2)
+draw_loglog_residuals_vs_fitted()
 qqnorm(resid(fit), pch = 16, cex = 0.5, col = rgb(0,0,0,0.45), main = "Normal Q-Q")
 qqline(resid(fit), col = "firebrick")
 par(op)
+
+pdf("figures/loglog_residuals_vs_fitted.pdf", width = 4.8, height = 4.3)
+op <- par(mar = c(4.2, 4.2, 2, 1))
+draw_loglog_residuals_vs_fitted()
+par(op)
+invisible(dev.off())
 
 ## Full conditionals of the independent (semi-conjugate) prior:
 ##   beta | sigma^2, y    ~ N( V (S0^{-1} m0 + X'y / sigma^2), V ),

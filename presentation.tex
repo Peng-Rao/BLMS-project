@@ -245,26 +245,28 @@
 \end{frame}
 
 \begin{frame}{Hull covariates \& residual diagnostics}
-	\begin{columns}[T]
-		\begin{column}{0.46\textwidth}
+	\footnotesize
+	\begin{columns}[T,onlytextwidth]
+		\begin{column}{0.48\textwidth}
 			\centering
-			\includegraphics[width=\textwidth]{figures/coef_forest.pdf}
+			\includegraphics[height=0.36\textheight]{figures/coef_forest.pdf}
+			\vspace{0.15em}
+			{\scriptsize\parbox{0.9\textwidth}{\centering Hull coefficients\\after conditioning on $\Fn$}}
 		\end{column}
-		\begin{column}{0.54\textwidth}
-			\textbf{Hull form factors.} Once $\Fn$ is in the model, every $95\%$ interval
-			contains zero, the factors vary only across the $22$ hulls and are strongly
-			collinear (resolved by BMA in Part~3).
-			\vspace{0.7em}
-
-			\textbf{Residual diagnostics expose two defects:}
-			\begin{itemize}
-				\item $\cup$-shaped trend vs.\ fitted values, a single constant exponent is too rigid;
-				\item spread shrinks as the fitted value grows, textbook \emph{heteroscedasticity}.
-			\end{itemize}
-			\vspace{0.4em}
-			Both motivate the nonlinear correction in Part~4.
+		\begin{column}{0.48\textwidth}
+			\centering
+			\includegraphics[height=0.36\textheight]{figures/loglog_residuals_vs_fitted.pdf}
+			\vspace{0.15em}
+			{\scriptsize\parbox{0.9\textwidth}{\centering Residuals vs fitted\\from the same log--log fit}}
 		\end{column}
 	\end{columns}
+	\vspace{0.35em}
+
+	\begin{itemize}
+		\item \textbf{Hull factors.} Conditional on $\Fn$, every $95\%$ interval contains zero; the factors are collinear across only $22$ hulls.
+		\item \textbf{Residuals.} The LOWESS curve is $\cup$-shaped and the spread shrinks with fitted value, so the log--log model is structurally too rigid.
+		\item \textbf{Next.} Use BMA for weak hull effects, then use Part~4's nonlinear heteroscedastic correction for the residual pattern.
+	\end{itemize}
 \end{frame}
 
 \begin{frame}{Prior sensitivity: does the prior drive $\bF>4$?}
