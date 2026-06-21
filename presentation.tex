@@ -189,20 +189,14 @@
 			\end{itemize}
 		\end{column}
 		\begin{column}{0.46\textwidth}
-			\footnotesize
-			\begin{block}{Variables}
-				\begin{tabular}{@{}ll@{}}
-					\texttt{LCB}           & centre of buoyancy (\%) \\
-					\texttt{prismatic}     & prismatic coefficient   \\
-					\texttt{L\_disp}       & length--displ.\ ratio   \\
-					\texttt{beam\_draught} & beam--draught ratio     \\
-					\texttt{L\_beam}       & length--beam ratio      \\[2pt]
-					\texttt{Froude}        & $\Fn = v/\sqrt{gL}$     \\[2pt]
-					\texttt{resistance}    & response (target)       \\
-				\end{tabular}
-			\end{block}
-			\scriptsize The five form factors vary only across the $22$ hulls;
-			$\Fn\in[0.125,0.45]$ is the dominant predictor.
+			\centering
+			\includegraphics[width=0.96\textwidth]{figures/yacht_power_law_scaling.pdf}
+			\vspace{0.35em}
+			\begin{itemize}
+				\scriptsize
+				\item The near-linear pattern on log--log axes supports a power-law relation.
+				\item Low-\Fn{} scatter motivates checking residual variation in later models.
+			\end{itemize}
 		\end{column}
 	\end{columns}
 \end{frame}
