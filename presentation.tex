@@ -458,7 +458,7 @@
 	\vspace{0.2em}
 	\begin{block}{$\delta$ is the heteroscedasticity correction}
 		$\delta=0$: constant variance \;$\big|$\; $\delta=1$: multiplicative
-		(constant CV --- the log--log case). We \emph{learn} $\delta$ instead of assuming it.
+		(constant CV). We \emph{learn} $\delta$ instead of assuming it.
 	\end{block}
 	Two models carried over from BAS/BMA:\quad
 	$M_0$ (Froude only)\quad vs.\quad $M_1$ (Froude $+$ \texttt{beam\_draught}).
@@ -492,7 +492,7 @@
 	\end{block}
 \end{frame}
 
-\begin{frame}{Inference: JAGS with slice sampling --- M1 diagnostics}
+\begin{frame}{Inference: JAGS with slice sampling}
 	\centering
 	\begin{columns}[c]
 		\begin{column}{0.5\textwidth}
@@ -590,7 +590,7 @@
 	\includegraphics[width=0.60\textwidth]{figures/task3-gamma-predictive-overlay.pdf}
 	\vspace{0.2em}
 	\begin{block}{Conclusion}
-		WAIC is a \textbf{tie} ($840.6$ vs.\ $842.8$) --- the data cannot separate them on
+		WAIC is a \textbf{tie} ($840.6$ vs.\ $842.8$), the data cannot separate them on
 		      fit, \emph{but} the Normal puts $\approx13\%$ of predictive mass \textbf{below zero}
 		      (impossible for resistance).
 	\end{block}
