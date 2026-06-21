@@ -673,7 +673,7 @@ traceplot(fit_M1[, c("theta[2]", "theta[3]", "sigma0", "delta")])
 par(op)
 save_current_pdf("task3-diagnostics-trace.pdf", width = 10, height = 6)
 
-op <- par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
+op <- par(mfrow = c(1, 2), mar = c(4, 4, 3, 1))
 acf(as.matrix(fit_M1[, "theta[2]"]), main = "ACF gamma_F (pooled chains)")
 acf(as.matrix(fit_M1[, "delta"]),    main = "ACF delta (pooled chains)")
 par(op)
@@ -1100,6 +1100,7 @@ legend("topright", bty = "n", lwd = c(2.4, 2.4, 1),
 
 plot(density(bB_draws), col = "firebrick", lwd = 2.4,
      xlim = range(bB_draws, bB_normal),
+     ylim = c(0, max(density(bB_draws)$y, density(bB_normal)$y)),
      main = expression("Likelihood sensitivity: "*beta[B]),
      xlab = expression(beta[B]), ylab = "posterior density")
 lines(density(bB_normal), col = "navy", lwd = 2.4)
@@ -1116,6 +1117,65 @@ save_current_pdf("task3-gamma-likelihood-sensitivity.pdf", width = 13, height = 
 ```
 
 The two fits share the same mean form and the same learned variance, so the comparison isolates the effect of the likelihood. Two conclusions stand out. First, the Froude exponent is *not* robust to the likelihood: the Gamma keeps $\gamma_F\approx4.8$ (close to the log-log estimate of part 1), whereas the additive Normal inflates it to $\gamma_F\approx6.4$. The additive Normal weights observations by squared error, so the few large high-Froude points dominate and steepen the slope; the Gamma's relative-error weighting down-weights them and the exponent relaxes. Second, the hull effect is likelihood-sensitive: `beam_draught` is credibly negative under the Normal but indistinguishable from zero under the Gamma. We therefore report both as likelihood-dependent rather than as stable physical findings.
+
+#### Residual diagnostics for the additive-Normal model
+
+For a like-for-like comparison with the Gamma diagnostics, we draw the same four residual plots on the original (resistance) scale for the additive-Normal model, standardizing each residual by its own learned $\hat\sigma_i=\hat\sigma_0\hat\mu_i^{\hat\delta}$. Because the Normal error is symmetric, the key contrasts with the Gamma are visible here: the Q--Q plot tests the Normal assumption directly, and a fraction of the lower predictive band falls below zero (impossible for a positive resistance).
+
+```{r task3-resid-diag-normal, fig.width=10, fig.height=7.5}
+## Residual diagnostics for the additive-Normal sensitivity model, original scale.
+## Built exactly like task3-resid-diag (the Gamma model) so the two error models
+## can be compared panel for panel.
+d_N         <- as.matrix(fit_M1_normal)
+thN_hat     <- colMeans(d_N[, paste0("theta[", seq_len(ncol(X1)), "]")])
+sigma0N_hat <- mean(d_N[, "sigma0"])
+deltaN_hat  <- mean(d_N[, "delta"])
+
+fitted_N <- as.vector(exp(X1 %*% thN_hat))     # fitted resistance (mean), original scale
+sigmaN_i <- sigma0N_hat * fitted_N^deltaN_hat  # per-observation fitted sd
+resid_N  <- y_res - fitted_N                   # raw residuals
+std_N    <- resid_N / sigmaN_i                 # standardized by the learned variance
+
+## same heteroscedasticity summaries as the Gamma model, for a like-for-like read
+terN <- cut(fitted_N, quantile(fitted_N, c(0, 1/3, 2/3, 1)),
+            include.lowest = TRUE, labels = c("low", "mid", "high"))
+cat("Additive Normal -- RAW residual SD by fitted-value tertile:\n")
+print(round(tapply(resid_N, terN, sd), 3))
+cat("Additive Normal -- STANDARDIZED residual SD by fitted-value tertile (should be ~1, flat):\n")
+print(round(tapply(std_N, terN, sd), 3))
+cat(sprintf("  cor(|standardized residual|, fitted) = %.3f\n", cor(abs(std_N), fitted_N)))
+cat(sprintf("  fraction of standardized residuals within +/-2 = %.3f\n", mean(abs(std_N) < 2)))
+## Normal-specific defect: the symmetric error can predict negative resistance.
+cat(sprintf("  fraction of points whose lower predictive (mu - 1.96*sigma) is < 0 = %.3f\n",
+            mean(fitted_N - 1.96 * sigmaN_i < 0)))
+
+op <- par(mfrow = c(2, 2), mar = c(4.2, 4.2, 2.2, 1))
+
+## (1) residuals vs fitted
+plot(fitted_N, resid_N, pch = 16, cex = 0.6, col = rgb(0, 0, 0, 0.45),
+     xlab = "fitted resistance", ylab = "residual",
+     main = "Normal: residuals vs fitted (original scale)")
+abline(h = 0, col = "firebrick"); lines(lowess(fitted_N, resid_N), col = "navy", lwd = 2)
+
+## (2) scale-location: sqrt|standardized residual| vs fitted
+plot(fitted_N, sqrt(abs(std_N)), pch = 16, cex = 0.6, col = rgb(0, 0, 0, 0.45),
+     xlab = "fitted resistance", ylab = "sqrt(|standardized residual|)",
+     main = "Normal: scale-location")
+lines(lowess(fitted_N, sqrt(abs(std_N))), col = "navy", lwd = 2)
+
+## (3) standardized residuals vs the physical driver, Froude
+plot(yh$Froude, std_N, pch = 16, cex = 0.6, col = rgb(0, 0, 0, 0.45),
+     xlab = "Froude", ylab = "standardized residual",
+     main = "Normal: standardized residuals vs Froude")
+abline(h = c(-2, 0, 2), col = c("grey50", "firebrick", "grey50"), lty = c(3, 1, 3))
+
+## (4) normal Q-Q of the standardized residuals (direct test of the Normal assumption)
+qqnorm(std_N, pch = 16, cex = 0.6, col = rgb(0, 0, 0, 0.45),
+       main = "Normal: Q-Q (standardized residuals)")
+qqline(std_N, col = "firebrick")
+par(op)
+save_current_pdf("task3-resid-diag-normal.pdf", width = 10, height = 7.5)
+```
 
 #### Which likelihood fits better? WAIC / PSIS-LOO
 

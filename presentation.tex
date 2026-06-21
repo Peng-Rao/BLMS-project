@@ -415,6 +415,208 @@
 
 
 %=======================================================================
+\section{Heteroscedasticity-Corrected Model}
+%=======================================================================
+
+% \begin{frame}{Why a new model? Two defects of the log--log fit}
+% 	\small
+% 	Parts~2--3 answered \emph{what} (a steep power law) and \emph{which variables}.
+% 	But the log--log residual diagnostics exposed two structural problems:
+% 	\begin{itemize}
+% 		\item \textbf{Heteroscedasticity:} the scatter grows with the resistance level
+% 		      --- a funnel the constant-$\sigma^2$ log model cannot represent.
+% 		\item \textbf{Hidden assumption:} logging the response \emph{forces} multiplicative
+% 		      error ($\delta=1$) instead of estimating how fast the variance grows.
+% 		\item \textbf{Scale:} resistance is physical and \textbf{strictly positive};
+% 		      inference and prediction should live on that scale.
+% 	\end{itemize}
+% 	\begin{block}{Goal of Part~4}
+% 		Model resistance on its original positive scale, keep the power-law mean,
+% 		and \textbf{learn} the variance function rather than assuming it.
+% 	\end{block}
+% \end{frame}
+
+\begin{frame}{The model: Gamma likelihood with a learned variance}
+	\small
+	Back to the \textbf{original} (positive) resistance scale. We model $Y_i>0$ with a
+	\textbf{Gamma} likelihood, moment-matched to a mean $\mu_i$ and a variance $\sigma_i^2$:
+	\[
+		Y_i\sim\mathrm{Gamma}(\alpha_i,r_i),\qquad
+		\alpha_i=\frac{\mu_i^2}{\sigma_i^2},\quad r_i=\frac{\mu_i}{\sigma_i^2}
+		\;\Longrightarrow\; \mathbb{E}[Y_i]=\mu_i,\ \mathrm{Var}[Y_i]=\sigma_i^2.
+	\]
+	\begin{columns}[T]
+		\begin{column}{0.52\textwidth}
+			\textbf{Mean: the same power law} (log link)
+			\[
+				\mu_i=k\,\Fn_i^{\gamma_F}\exp(\beta_B\,bd_i)=\exp(\bm x_i^{\!\top}\bm\theta).
+			\]
+		\end{column}
+		\begin{column}{0.44\textwidth}
+			\textbf{Variance: let it grow}
+			\[
+				\sigma_i=\sigma_0\,\mu_i^{\delta}.
+			\]
+		\end{column}
+	\end{columns}
+	\vspace{0.2em}
+	\begin{block}{$\delta$ is the heteroscedasticity correction}
+		$\delta=0$: constant variance \;$\big|$\; $\delta=1$: multiplicative
+		(constant CV --- the log--log case). We \emph{learn} $\delta$ instead of assuming it.
+	\end{block}
+	Two models carried over from BAS/BMA:\quad
+	$M_0$ (Froude only)\quad vs.\quad $M_1$ (Froude $+$ \texttt{beam\_draught}).
+\end{frame}
+
+
+\begin{frame}{Priors: weakly informative, physics-anchored}
+	\small
+	\textbf{Mean parameters}
+	\[
+		\log k\sim\mathcal{N}(0,10^2),\qquad
+		\gamma_F\sim\mathcal{N}(4,2^2),\qquad
+		\beta_B\sim\mathcal{N}(0,2^2).
+	\]
+	\textbf{Variance-function parameters}
+	\[
+		\log\sigma_0\sim\mathcal{N}(0,10^2),\qquad
+		\delta\sim\mathcal{N}(0,1^2).
+	\]
+	\begin{itemize}
+		\item $\gamma_F$ centred on the \textbf{physical value $4$}, but loose ($\mathrm{sd}=2$):
+		      the data, not the prior, drive the exponent.
+		\item $\delta$ centred at \textbf{$0$ (homoscedasticity)}: a non-constant variance
+		      must be \emph{earned} from the data.
+		\item Remaining priors are vague but proper.
+	\end{itemize}
+	\begin{block}{Prior sensitivity on $\gamma_F$}
+		$M_1$ is re-fitted with a \textbf{vague} $\mathcal{N}(0,10^2)$ and an
+		\textbf{informative} $\mathcal{N}(4,0.5^2)$ prior to confirm the exponent is
+		governed by the likelihood, not the prior.
+	\end{block}
+\end{frame}
+
+\begin{frame}{Inference: JAGS with slice sampling --- M1 diagnostics}
+	\centering
+	\begin{columns}[c]
+		\begin{column}{0.5\textwidth}
+			\centering
+			\includegraphics[width=\textwidth]{figures/task3-diagnostics-trace.pdf}
+		\end{column}
+		\begin{column}{0.5\textwidth}
+			\centering
+			\includegraphics[width=\textwidth]{figures/task3-diagnostics-acf.pdf}
+		\end{column}
+	\end{columns}
+	\vspace{0.4em}
+
+	\footnotesize
+	\begin{tabular}{lccccc}
+		\toprule
+		\textbf{M1 parameter} & $b_0$ & $\gamma_F$ & $\beta_B$ & $\sigma_0$ & $\delta$ \\
+		\midrule
+		$\hat R$ & $1.0002$ & $0.9999$ & $1.0003$ & $1.0000$ & $1.0000$ \\
+		ESS      & $4409$   & $2182$   & $13012$  & $3284$   & $2208$  \\
+		\bottomrule
+	\end{tabular}
+\end{frame}
+
+\begin{frame}{Result 1: did learning the variance fix it?}
+	\centering
+	\vspace{0.4em}
+	Constant variance ($\delta=0$) vs.\ learned variance ($\delta$ free) --- same mean structure (M1)
+
+	\vspace{1.0em}
+	\small
+	\begin{tabular}{lcccccc}
+		\toprule
+		\textbf{Model} & \textbf{WAIC} & $\Delta$WAIC & $\Delta$elpd (se) & $\gamma_F$ & \textbf{cov.} & \textbf{width} \\
+		\midrule
+		Constant variance ($\delta=0$)   & $1667.7$ & $827.1$ & $-413.5\ (14.3)$ & $1.97$ & $0.968$ & $35.8$ \\
+		Learned variance ($\delta$ free) & $\mathbf{840.6}$  & $\mathbf{0.0}$   & ---              & $\mathbf{4.82}$ & $0.964$ & $\mathbf{9.6}$ \\
+		\bottomrule
+	\end{tabular}
+
+	\vspace{1.0em}
+	\normalsize
+	\begin{block}{Variance growth }
+		$\widehat\delta\approx0.89$, \ $\Pr(\delta>0\mid\bm y)=1$. \
+		$\Delta$WAIC $=827$ ($\approx29\,$SE): constant variance is rejected, it
+		\emph{biases} the exponent to $1.97$, and covers only with a uniform band $\approx3.7\times$ wider.
+	\end{block}
+\end{frame}
+
+\begin{frame}{Result 1 (cont.): posterior predictive bands}
+	\centering
+	\includegraphics[height=0.74\textheight]{figures/task3-ppc-var.pdf}
+
+	\vspace{0.3em}
+	\footnotesize Same $\approx96\%$ coverage, but constant variance needs a uniform tube
+	(width $35.8$), while the learned variance hugs the data (width $9.6$).
+\end{frame}
+
+  
+\begin{frame}{Result 2: the Froude exponent survives}
+	\small
+	\centering
+	\includegraphics[width=0.95\textwidth]{figures/task3-gamma-plot.pdf}
+	\vspace{0.4em}
+
+	\footnotesize
+	\begin{tabular}{lcccccc}
+		\toprule
+		\textbf{Model} & \textbf{WAIC} & \textbf{LOOIC} & $p_{\text{WAIC}}$ & $\max\hat k$ & $\Delta$WAIC & $\Delta$elpd (se) \\
+		\midrule
+		$M_0$: Froude only            & $840.9$ & $841.0$ & $5.8$ & $0.6$ & $0.3$ & $-0.2\ (1.9)$ \\
+		$M_1$: $+\,$\texttt{beam\_draught} & $840.6$ & $840.7$ & $7.1$ & $0.4$ & $0.0$ & --- \\
+		\bottomrule
+	\end{tabular}
+\end{frame}
+
+\begin{frame}{Sensitivity: the exponent is likelihood-dependent}
+	\small
+	Same mean, same variance function, only the \textbf{likelihood shape} changes
+	(Gamma vs.\ additive Normal):
+	\vspace{0.2em}
+	\centering
+	\includegraphics[width=0.95\textwidth]{figures/task3-gamma-likelihood-sensitivity.pdf}
+	\vspace{0.2em}
+	\begin{itemize}
+		\item Gamma keeps $\gamma_F\approx4.8$; the Normal \textbf{inflates it to $\approx6.4$}
+		      (squared-error weighting lets a few large points dominate).
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Sensitivity: the exponent is likelihood-dependent}
+	\small
+	\vspace{0.2em}
+	\centering
+	\includegraphics[width=0.60\textwidth]{figures/task3-gamma-predictive-overlay.pdf}
+	\vspace{0.2em}
+	\begin{block}{Conclusion}
+		WAIC is a \textbf{tie} ($840.6$ vs.\ $842.8$) --- the data cannot separate them on
+		      fit, \emph{but} the Normal puts $\approx13\%$ of predictive mass \textbf{below zero}
+		      (impossible for resistance).
+	\end{block}
+\end{frame}
+ 
+\begin{frame}{Part~4 summary}
+	\small
+	\begin{itemize}
+		\item Heteroscedasticity is captured: $\delta\approx0.89$, $\Pr(\delta>0\mid\bm y)=1$.
+		      Learning the variance is decisive ($\Delta$WAIC $\approx827$), and necessary for the
+		      physics: constant variance biases the exponent to $1.97$, vs.\ $4.82$ when the variance is learned.
+		\item The power law is robust: $\gamma_F\approx4.82\approx\bF\approx4.69$,
+		      close to the textbook value $4$.
+		\item Hull effect does not survive: \texttt{beam\_draught} is not credible
+		      under the positive-support model.
+		\item The exponent is likelihood-sensitive (Normal $\to\approx6.4$),
+		      so the error model must be reported alongside it.
+	\end{itemize}
+\end{frame}
+
+
+%=======================================================================
 \section{Posterior Predictive Curves}
 %=======================================================================
 
